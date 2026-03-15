@@ -3,6 +3,9 @@ class MemosPlugin {
     this.notes = [];
     this.filteredNotes = [];
     this.currentFilter = { search: '', tags: [] };
+    this.currentPage = 1;
+    this.pageSize = 10;
+    this.isLoading = false;
     this.init();
   }
 
@@ -13,12 +16,14 @@ class MemosPlugin {
     this.renderTags();
     this.renderCalendar();
     this.updateSyncButtons();
+    this.bindScrollEvent();
   }
 
   async loadNotes() {
     const result = await chrome.storage.local.get(['memos_notes']);
     this.notes = result.memos_notes || [];
     this.filteredNotes = [...this.notes];
+    this.currentPage = 1;
   }
 
   async saveNotes() {
@@ -137,14 +142,36 @@ class MemosPlugin {
       if (!a.pinned && b.pinned) return 1;
       return 0;
     });
+    this.currentPage = 1;
     this.renderNotes();
   }
 
   renderNotes() {
     const container = document.getElementById('notesList');
-    container.innerHTML = '';
 
-    this.filteredNotes.forEach((note, index) => {
+    // 如果是第一次加载或重新渲染，清空容器
+    if (this.currentPage === 1) {
+      container.innerHTML = '';
+      this.renderedCount = 0;
+    }
+
+    // 计算要渲染的笔记范围
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    const endIndex = Math.min(startIndex + this.pageSize, this.filteredNotes.length);
+
+    // 如果没有更多笔记，移除加载提示
+    if (startIndex >= this.filteredNotes.length) {
+      const loadMoreBtn = document.getElementById('loadMoreBtn');
+      if (loadMoreBtn) {
+        loadMoreBtn.textContent = '已加载全部笔记';
+        loadMoreBtn.disabled = true;
+      }
+      return;
+    }
+
+    // 渲染当前页的笔记
+    for (let i = startIndex; i < endIndex; i++) {
+      const note = this.filteredNotes[i];
       const div = document.createElement('div');
       div.className = 'note-item' + (note.pinned ? ' pinned' : '');
 
@@ -212,9 +239,92 @@ class MemosPlugin {
           this.showToast('笔记已删除');
         }
       });
-      
+
       container.appendChild(div);
+      this.renderedCount = endIndex;
+    }
+
+    // 更新或创建加载更多按钮
+    this.updateLoadMoreButton();
+  }
+
+  updateLoadMoreButton() {
+    // 创建加载提示元素
+    let loadingIndicator = document.getElementById('loadingIndicator');
+
+    if (this.renderedCount < this.filteredNotes.length) {
+      if (!loadingIndicator) {
+        loadingIndicator = document.createElement('div');
+        loadingIndicator.id = 'loadingIndicator';
+        loadingIndicator.className = 'loading-indicator';
+        loadingIndicator.style.cssText = `
+          text-align: center;
+          padding: 20px;
+          color: #999;
+          font-size: 14px;
+          display: none;
+        `;
+        loadingIndicator.textContent = '加载中...';
+        document.getElementById('notesList').appendChild(loadingIndicator);
+      }
+    } else {
+      // 没有更多笔记，显示已加载全部
+      if (!loadingIndicator) {
+        loadingIndicator = document.createElement('div');
+        loadingIndicator.id = 'loadingIndicator';
+        loadingIndicator.className = 'loading-indicator';
+        loadingIndicator.style.cssText = `
+          text-align: center;
+          padding: 20px;
+          color: #999;
+          font-size: 14px;
+        `;
+      }
+      loadingIndicator.textContent = '已加载全部笔记';
+      loadingIndicator.style.display = 'block';
+    }
+  }
+
+  bindScrollEvent() {
+    const scrollContainer = document.querySelector('.container') || document.documentElement;
+
+    scrollContainer.addEventListener('scroll', () => {
+      // 如果正在加载或已加载全部，不处理
+      if (this.isLoading || this.renderedCount >= this.filteredNotes.length) {
+        return;
+      }
+
+      // 计算滚动位置
+      const scrollTop = scrollContainer.scrollTop || window.pageYOffset;
+      const scrollHeight = scrollContainer.scrollHeight || document.documentElement.scrollHeight;
+      const clientHeight = scrollContainer.clientHeight || window.innerHeight;
+
+      // 当滚动到距离底部100px时开始加载
+      const threshold = 100;
+      if (scrollHeight - scrollTop - clientHeight < threshold) {
+        this.loadMoreNotes();
+      }
     });
+  }
+
+  async loadMoreNotes() {
+    if (this.isLoading) return;
+
+    this.isLoading = true;
+
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    if (loadingIndicator) {
+      loadingIndicator.textContent = '加载中...';
+      loadingIndicator.style.display = 'block';
+    }
+
+    // 模拟异步加载延迟
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    this.currentPage++;
+    this.renderNotes();
+
+    this.isLoading = false;
   }
 
   renderTags() {
