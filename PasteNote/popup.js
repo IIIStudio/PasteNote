@@ -24,14 +24,15 @@ class MemosPlugin {
   async saveNotes() {
     await chrome.storage.local.set({ memos_notes: this.notes });
     // 如果启用了云同步，自动上传到云端
-    const syncEnabled = localStorage.getItem('cos_enabled') === 'true';
+    const result = await chrome.storage.local.get(['cos_enabled']);
+    const syncEnabled = result.cos_enabled === true;
     if (syncEnabled) {
       this.syncToCloud();
     }
   }
 
   async syncToCloud() {
-    const config = this.getCloudConfig();
+    const config = await this.getCloudConfig();
     if (!config) return;
 
     if (typeof CloudSync === 'undefined') return;
@@ -670,8 +671,9 @@ class MemosPlugin {
     }
   }
 
-  exportNotes() {
-    const syncEnabled = localStorage.getItem('cos_enabled') === 'true';
+  async exportNotes() {
+    const result = await chrome.storage.local.get(['cos_enabled']);
+    const syncEnabled = result.cos_enabled === true;
     if (syncEnabled) {
       // 云端上传
       this.uploadToCloud();
@@ -688,8 +690,9 @@ class MemosPlugin {
     }
   }
 
-  importNotes() {
-    const syncEnabled = localStorage.getItem('cos_enabled') === 'true';
+  async importNotes() {
+    const result = await chrome.storage.local.get(['cos_enabled']);
+    const syncEnabled = result.cos_enabled === true;
     if (syncEnabled) {
       // 云端下载
       this.downloadFromCloud();
@@ -744,32 +747,33 @@ class MemosPlugin {
     }, 2000);
   }
 
-  showSyncModal() {
+  async showSyncModal() {
     const modal = document.getElementById('syncModal');
     const enableCheckbox = document.getElementById('enableCloudSync');
     const secretIdInput = document.getElementById('syncSecretId');
     const secretKeyInput = document.getElementById('syncSecretKey');
     const bucketInput = document.getElementById('syncBucket');
     const regionInput = document.getElementById('syncRegion');
-    
+
     // 加载保存的配置
+    const result = await chrome.storage.local.get(['cos_enabled', 'cos_secretId', 'cos_secretKey', 'cos_bucket', 'cos_region']);
     const config = {
-      enabled: localStorage.getItem('cos_enabled') === 'true',
-      secretId: localStorage.getItem('cos_secretId') || '',
-      secretKey: localStorage.getItem('cos_secretKey') || '',
-      bucket: localStorage.getItem('cos_bucket') || '',
-      region: localStorage.getItem('cos_region') || ''
+      enabled: result.cos_enabled === true,
+      secretId: result.cos_secretId || '',
+      secretKey: result.cos_secretKey || '',
+      bucket: result.cos_bucket || '',
+      region: result.cos_region || ''
     };
-    
+
     enableCheckbox.checked = config.enabled;
     secretIdInput.value = config.secretId;
     secretKeyInput.value = config.secretKey;
     bucketInput.value = config.bucket;
     regionInput.value = config.region;
-    
-    document.getElementById('cloudConfigSection').style.display = 
+
+    document.getElementById('cloudConfigSection').style.display =
       config.enabled ? 'block' : 'none';
-    
+
     modal.style.display = 'block';
   }
 
@@ -777,7 +781,7 @@ class MemosPlugin {
     document.getElementById('syncModal').style.display = 'none';
   }
 
-  saveSyncConfig() {
+  async saveSyncConfig() {
     const enableCheckbox = document.getElementById('enableCloudSync');
     const secretId = document.getElementById('syncSecretId').value.trim();
     const secretKey = document.getElementById('syncSecretKey').value.trim();
@@ -789,50 +793,54 @@ class MemosPlugin {
       return;
     }
 
-    localStorage.setItem('cos_enabled', enableCheckbox.checked.toString());
+    const storageData = {
+      cos_enabled: enableCheckbox.checked
+    };
 
     if (enableCheckbox.checked) {
-      localStorage.setItem('cos_secretId', secretId);
-      localStorage.setItem('cos_secretKey', secretKey);
-      localStorage.setItem('cos_bucket', bucket);
-      localStorage.setItem('cos_region', region);
+      storageData.cos_secretId = secretId;
+      storageData.cos_secretKey = secretKey;
+      storageData.cos_bucket = bucket;
+      storageData.cos_region = region;
       this.showToast('云同步配置已保存');
     } else {
-      localStorage.removeItem('cos_secretId');
-      localStorage.removeItem('cos_secretKey');
-      localStorage.removeItem('cos_bucket');
-      localStorage.removeItem('cos_region');
+      storageData.cos_secretId = '';
+      storageData.cos_secretKey = '';
+      storageData.cos_bucket = '';
+      storageData.cos_region = '';
       this.showToast('已禁用云同步');
     }
 
+    await chrome.storage.local.set(storageData);
     this.updateSyncButtons();
     this.hideSyncModal();
   }
 
-  getCloudConfig() {
-    const enabled = localStorage.getItem('cos_enabled') === 'true';
+  async getCloudConfig() {
+    const result = await chrome.storage.local.get(['cos_enabled', 'cos_secretId', 'cos_secretKey', 'cos_bucket', 'cos_region']);
+    const enabled = result.cos_enabled === true;
     if (!enabled) return null;
-    
+
     return {
-      secretId: localStorage.getItem('cos_secretId'),
-      secretKey: localStorage.getItem('cos_secretKey'),
-      bucket: localStorage.getItem('cos_bucket'),
-      region: localStorage.getItem('cos_region')
+      secretId: result.cos_secretId,
+      secretKey: result.cos_secretKey,
+      bucket: result.cos_bucket,
+      region: result.cos_region
     };
   }
 
-  downloadFromCloud() {
-    const config = this.getCloudConfig();
+  async downloadFromCloud() {
+    const config = await this.getCloudConfig();
     if (!config) {
       alert('请先启用并配置云同步');
       return;
     }
-    
+
     if (typeof CloudSync === 'undefined') {
       alert('云同步模块未加载');
       return;
     }
-    
+
     try {
       const sync = new CloudSync(config);
       sync.download().then(notes => {
@@ -856,8 +864,8 @@ class MemosPlugin {
     }
   }
 
-  uploadToCloud() {
-    const config = this.getCloudConfig();
+  async uploadToCloud() {
+    const config = await this.getCloudConfig();
     if (!config) {
       alert('请先启用并配置云同步');
       return;
@@ -880,10 +888,11 @@ class MemosPlugin {
     }
   }
 
-  updateSyncButtons() {
+  async updateSyncButtons() {
     const importBtn = document.getElementById('importBtn');
     const exportBtn = document.getElementById('exportBtn');
-    const syncEnabled = localStorage.getItem('cos_enabled') === 'true';
+    const result = await chrome.storage.local.get(['cos_enabled']);
+    const syncEnabled = result.cos_enabled === true;
 
     if (syncEnabled) {
       importBtn.textContent = '云端下载';
