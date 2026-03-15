@@ -137,6 +137,15 @@ h1 {
 .calendar-container h3 {
   font-size: 14px;
   margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.note-count {
+  font-size: 11px;
+  color: #999;
+  font-weight: normal;
 }
 
 .calendar {

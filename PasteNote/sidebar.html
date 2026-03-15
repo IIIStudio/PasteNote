@@ -8,15 +8,23 @@
   <style>
     /* 侧边栏特定的样式调整 */
     body {
-      width: 100%;
-      max-height: 100vh;
-      overflow-x: hidden;
+      width: 100% !important;
+      height: 100vh !important;
+      max-height: 100vh !important;
+      min-height: 100vh !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
     }
 
     .container {
       max-width: 100%;
       padding: 12px;
       box-sizing: border-box;
+      padding-bottom: 0;
+      min-height: 100%;
+      height: auto;
     }
 
     /* 侧边栏模式下日历宽度控制 */
@@ -31,9 +39,10 @@
       font-size: 8px;
     }
 
-    /* 侧边栏笔记列表可以更宽 */
+    /* 侧边栏笔记列表自适应高度 */
     .notes-list {
-      max-height: calc(100vh - 400px);
+      max-height: none !important;
+      overflow-y: auto !important;
     }
 
     /* 模态框在侧边栏中的样式调整 */

@@ -401,6 +401,21 @@ class MemosPlugin {
 
       container.appendChild(dayDiv);
     });
+
+    // 在活跃度标题右边显示笔记总数
+    const calendarContainer = document.querySelector('.calendar-container h3');
+    if (calendarContainer) {
+      // 移除之前存在的计数
+      const existingCount = calendarContainer.querySelector('.note-count');
+      if (existingCount) {
+        existingCount.remove();
+      }
+
+      const countSpan = document.createElement('span');
+      countSpan.className = 'note-count';
+      countSpan.textContent = `${this.notes.length} 条笔记`;
+      calendarContainer.appendChild(countSpan);
+    }
   }
 
   showNoteModal(noteIndex = null) {
