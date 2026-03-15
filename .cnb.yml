@@ -28,3 +28,12 @@ main:
             branch: main
             sync_mode: mirror  # 镜像模式，直接覆盖
             force: true
+        - name: 压缩文件
+          timeout: 7200s
+          script: apt-get update && apt-get install -y zip && cd /workspace/PasteNote && zip -r ../PasteNote.zip *
+        - name: 上传附件
+          image: cnbcool/attachments:latest
+          settings:
+            tag: v1.1.0
+            attachments:
+              - "PasteNote.zip"
