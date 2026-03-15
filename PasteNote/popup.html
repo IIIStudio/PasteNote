@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PasteNote</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-left">
+        <h1>PasteNote</h1>
+        <div class="header-links">
+          <a href="https://github.com/IIIStudio/PasteNote" target="_blank" class="header-link">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+            </svg>
+          </a>
+          <a href="https://cnb.cool/IIIStudio/Code/Greasemonkey/PasteNote" target="_blank" class="header-link">
+            <img src="icons/CNB.png" alt="CNB" width="16" height="16">
+          </a>
+        </div>
+      </div>
+      <div>
+        <button id="importBtn" class="btn btn-small">导入</button>
+        <button id="exportBtn" class="btn btn-small">导出</button>
+        <button id="syncBtn" class="btn btn-small">云同步</button>
+      </div>
+    </header>
+    
+    <!-- 云同步配置弹窗 -->
+    <div id="syncModal" class="modal">
+      <div class="modal-content sync-modal">
+        <span class="close">&times;</span>
+        <h2>云同步设置</h2>
+        <div class="sync-option">
+          <label>
+            <input type="checkbox" id="enableCloudSync"> 启用云同步
+          </label>
+        </div>
+        <div id="cloudConfigSection" style="display: none;">
+          <div class="form-group">
+            <label>SecretId:</label>
+            <input type="text" id="syncSecretId" placeholder="请输入腾讯云 SecretId">
+          </div>
+          <div class="form-group">
+            <label>SecretKey:</label>
+            <input type="password" id="syncSecretKey" placeholder="请输入腾讯云 SecretKey">
+          </div>
+          <div class="form-group">
+            <label>存储桶名称:</label>
+            <input type="text" id="syncBucket" placeholder="请输入存储桶名称">
+          </div>
+          <div class="form-group">
+            <label>地域:</label>
+            <input type="text" id="syncRegion" placeholder="如: ap-beijing">
+          </div>
+        </div>
+        <div class="sync-actions">
+          <button id="saveSyncConfig" class="btn btn-primary">保存配置</button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="搜索笔记...">
+    </div>
+    
+    <div class="tags-filter">
+      <div class="tags-label">标签:</div>
+      <div id="tagsContainer" class="tags-list"></div>
+    </div>
+    
+    <div class="calendar-container">
+      <h3>活跃度</h3>
+      <div id="contributionCalendar" class="calendar"></div>
+      <div id="calendarTooltip" class="tooltip"></div>
+    </div>
+    
+    <div class="notes-section">
+      <div class="section-header">
+        <h3>笔记</h3>
+        <button id="addNoteBtn" class="btn btn-primary">新建</button>
+      </div>
+      <div id="notesList" class="notes-list"></div>
+    </div>
+  </div>
+
+  <!-- Modal for note editor -->
+  <div id="noteModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2 id="modalTitle">新建笔记</h2>
+      <input type="text" id="noteTitle" placeholder="标题">
+      <textarea id="noteContent" placeholder="内容..."></textarea>
+      <div class="tag-input-section">
+        <div class="tags-wrapper" id="tagsWrapper">
+          <button id="addTagBtn" class="btn btn-small add-tag-btn">添加标签</button>
+        </div>
+      </div>
+    <div class="modal-actions">
+      <button id="deleteNoteBtn" class="btn">删除</button>
+      <button id="saveNoteBtn" class="btn btn-primary">保存</button>
+      <button id="cancelBtn" class="btn">取消</button>
+    </div>
+    </div>
+  </div>
+
+  <!-- 添加标签弹窗 -->
+  <div id="tagModal" class="modal">
+    <div class="modal-content tag-modal">
+      <span class="close">&times;</span>
+      <h2>添加新标签</h2>
+      <input type="text" id="newTagInput" placeholder="输入标签名称">
+      <div class="modal-actions">
+        <button id="confirmAddTag" class="btn btn-primary">添加</button>
+        <button id="cancelAddTag" class="btn">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="libs/cos-js-sdk-v5.min.js"></script>
+  <script src="cloudSync.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

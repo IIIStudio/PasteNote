@@ -1,0 +1,539 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 400px;
+  max-height: 600px;
+  background: #fff;
+  color: #000;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow-y: auto;
+}
+
+.container {
+  padding: 16px;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+h1 {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.header-links {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.header-link {
+  color: #000;
+  text-decoration: none;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.header-link:hover {
+  opacity: 1;
+}
+
+.btn {
+  padding: 6px 12px;
+  border: 1px solid #000;
+  background: #fff;
+  color: #000;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btn:hover {
+  background: #f5f5f5;
+}
+
+.btn-primary {
+  background: #000;
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: #333;
+}
+
+.btn-small {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.search-box {
+  margin-bottom: 12px;
+}
+
+#searchInput {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #000;
+  font-size: 14px;
+}
+
+.tags-filter {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tags-label {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.tag {
+  padding: 2px 6px;
+  border: 1px solid #000;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.tag:hover {
+  background: #f5f5f5;
+}
+
+.tag.active {
+  background: #000;
+  color: #fff;
+}
+
+.tag.active:hover {
+  background: #000;
+  color: #fff;
+}
+
+.calendar-container {
+  margin-bottom: 16px;
+}
+
+.calendar-container h3 {
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(31, 1fr);
+  gap: 2px;
+  margin-bottom: 8px;
+  position: relative;
+}
+
+.calendar-day {
+  width: 10px;
+  height: 10px;
+  background: #eee;
+  border-radius: 2px;
+  cursor: pointer;
+  position: relative;
+}
+
+.calendar-day[data-level="1"] { background: #9be9a8; }
+.calendar-day[data-level="2"] { background: #40c463; }
+.calendar-day[data-level="3"] { background: #30a14e; }
+.calendar-day[data-level="4"] { background: #216e39; }
+
+.calendar-day:hover {
+  outline: 1px solid #000;
+}
+
+.tooltip {
+  position: absolute;
+  background: #000;
+  color: #fff;
+  padding: 4px 8px;
+  font-size: 11px;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 1000;
+  display: none;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.notes-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.notes-list::-webkit-scrollbar-thumb {
+  background: #000;
+}
+
+/* 同步弹窗样式 */
+.sync-modal {
+  width: 340px;
+  max-width: 90vw;
+  max-height: 520px;
+  overflow-y: auto;
+  z-index: 2000;
+}
+
+.form-group {
+  margin-bottom: 8px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 3px;
+  font-weight: 500;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 5px 6px;
+  border: 1px solid #000;
+  font-size: 12px;
+}
+
+.sync-option {
+  margin-bottom: 12px;
+}
+
+.sync-option label {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sync-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.sync-actions .btn {
+  flex: 1;
+  min-width: 90px;
+}
+
+.notes-section {
+  border-top: 1px solid #000;
+  padding-top: 16px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.notes-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.note-item {
+  border: 1px solid #000;
+  padding: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  position: relative;
+}
+
+.note-item:hover {
+  background: #f5f5f5;
+}
+
+.note-item.pinned {
+  background: #000;
+  color: #fff;
+  border-color: #000;
+}
+
+.note-item.pinned .note-preview {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.note-item.pinned .note-tag {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.note-item.pinned .note-time {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.note-item.pinned:hover {
+  background: #1a1a1a;
+}
+
+.note-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.note-preview {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.note-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding-right: 40px;
+}
+
+.note-tag {
+  font-size: 10px;
+  padding: 1px 4px;
+  border: 1px solid #999;
+}
+
+.note-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 10;
+}
+
+.note-item:hover .note-actions {
+  opacity: 1;
+}
+
+.note-edit-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: #fff;
+  color: #000;
+  border-radius: 50%;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.note-edit-btn:hover {
+  background: #000;
+  color: #fff;
+  transform: scale(1.1);
+}
+
+.note-delete-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: #fff;
+  color: #000;
+  border-radius: 50%;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.note-delete-btn:hover {
+  background: #000;
+  color: #fff;
+  transform: scale(1.1);
+}
+
+.note-pin-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: #fff;
+  color: #000;
+  border-radius: 50%;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.note-pin-btn:hover {
+  background: #000;
+  color: #fff;
+  transform: scale(1.1);
+}
+
+.note-pin-btn.pinned {
+  background: #000;
+  color: #fff;
+}
+
+.note-pin-btn.pinned:hover {
+  background: #fff;
+  color: #000;
+}
+
+.note-time {
+  font-size: 10px;
+  color: #999;
+  position: absolute;
+  bottom: 1px;
+  right: 2px;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  z-index: 1500;
+}
+
+.modal-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  padding: 16px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.close {
+  float: right;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+#noteTitle {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 8px;
+  border: 1px solid #000;
+}
+
+.tag-input-section {
+  margin-bottom: 12px;
+}
+
+.tags-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.add-tag-btn {
+  padding: 6px 12px;
+  border: 1px solid #000;
+  background: #fff;
+  color: #000;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.add-tag-btn:hover {
+  background: #f5f5f5;
+}
+
+.tag {
+  padding: 4px 10px;
+  border: 1px solid #000;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #fff;
+  color: #000;
+}
+
+.tag:hover {
+  background: #f5f5f5;
+}
+
+.tag.selected {
+  background: #000;
+  color: #fff;
+}
+
+/* 标签弹窗样式 */
+.tag-modal {
+  width: 90%;
+  max-width: 300px;
+}
+
+.tag-modal h2 {
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+.tag-modal input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #000;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+#noteContent {
+  width: 100%;
+  height: 120px;
+  padding: 8px;
+  border: 1px solid #000;
+  resize: vertical;
+  margin-bottom: 12px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
