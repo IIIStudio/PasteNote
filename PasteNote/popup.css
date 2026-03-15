@@ -141,7 +141,9 @@ h1 {
 
 .calendar {
   display: grid;
-  grid-template-columns: repeat(31, 1fr);
+  grid-template-rows: repeat(7, 10px);
+  grid-auto-flow: column;
+  grid-auto-columns: 10px;
   gap: 2px;
   margin-bottom: 8px;
   position: relative;
@@ -166,15 +168,17 @@ h1 {
 }
 
 .tooltip {
-  position: absolute;
+  position: fixed;
   background: #000;
   color: #fff;
-  padding: 4px 8px;
-  font-size: 11px;
-  border-radius: 2px;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 4px;
   pointer-events: none;
-  z-index: 1000;
+  z-index: 10000;
   display: none;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
 /* 自定义滚动条 */
@@ -307,12 +311,14 @@ h1 {
 .note-title {
   font-weight: 600;
   margin-bottom: 4px;
+  padding-right: 40px;
 }
 
 .note-preview {
   font-size: 12px;
   color: #666;
   margin-bottom: 4px;
+  padding-right: 40px;
 }
 
 .note-tags {
@@ -473,12 +479,13 @@ h1 {
 }
 
 .add-tag-btn {
-  padding: 6px 12px;
+  padding: 4px 10px;
   border: 1px solid #000;
   background: #fff;
   color: #000;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
+  transition: background 0.2s;
 }
 
 .add-tag-btn:hover {
@@ -490,9 +497,10 @@ h1 {
   border: 1px solid #000;
   font-size: 11px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.2s;
   background: #fff;
   color: #000;
+  position: relative;
 }
 
 .tag:hover {
@@ -502,6 +510,45 @@ h1 {
 .tag.selected {
   background: #000;
   color: #fff;
+}
+
+.tag.selected:hover {
+  background: #000;
+}
+
+/* 弹窗内的标签悬停效果 */
+#tagsWrapper .tag {
+  transition: all 0.2s;
+}
+
+#tagsWrapper .tag:hover {
+  padding-right: 24px;
+}
+
+#tagsWrapper .tag .tag-delete {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 20px;
+  height: 100%;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+  cursor: pointer;
+  line-height: 1;
+  pointer-events: none;
+}
+
+#tagsWrapper .tag:hover .tag-delete {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#tagsWrapper .tag .tag-delete:hover {
+  color: #ff4444;
 }
 
 /* 标签弹窗样式 */

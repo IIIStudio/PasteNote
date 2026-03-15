@@ -108,10 +108,26 @@ class MemosPlugin {
       const matchesSearch = !this.currentFilter.search ||
         note.title.toLowerCase().includes(this.currentFilter.search.toLowerCase()) ||
         note.content.toLowerCase().includes(this.currentFilter.search.toLowerCase());
-      
+
+      // 如果搜索词是日期格式（YYYY-MM-DD），也检查笔记的创建日期
+      let matchesDate = true;
+      if (this.currentFilter.search && this.currentFilter.search.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const noteDate = new Date(note.createdAt);
+        const year = noteDate.getFullYear();
+        const month = String(noteDate.getMonth() + 1).padStart(2, '0');
+        const day = String(noteDate.getDate()).padStart(2, '0');
+        const noteDateStr = `${year}-${month}-${day}`;
+        matchesDate = noteDateStr === this.currentFilter.search;
+      }
+
       const matchesTags = this.currentFilter.tags.length === 0 ||
         this.currentFilter.tags.every(tag => note.tags.includes(tag));
-      
+
+      // 如果搜索词是日期，只匹配日期；否则匹配标题和内容
+      if (this.currentFilter.search && this.currentFilter.search.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        return matchesDate && matchesTags;
+      }
+
       return matchesSearch && matchesTags;
     });
     // 置顶笔记排在前面
@@ -231,24 +247,68 @@ class MemosPlugin {
     const container = document.getElementById('contributionCalendar');
     container.innerHTML = '';
 
-    // Generate last 217 days (31 columns)
-    for (let i = 0; i < 217; i++) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      
+    // 获取今天的日期
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // 获取有笔记的所有日期
+    const noteDates = new Set();
+    this.notes.forEach(note => {
+      const noteDate = new Date(note.createdAt);
+      const year = noteDate.getFullYear();
+      const month = String(noteDate.getMonth() + 1).padStart(2, '0');
+      const day = String(noteDate.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+      noteDates.add(dateStr);
+    });
+
+    // 从今天往前推30周（210天），找到最早的一个周日
+    let startDate = new Date(today);
+    let weekCount = 30; // 30周
+    // 往前推30周
+    startDate.setDate(startDate.getDate() - (weekCount * 7));
+    // 找到那个周日
+    const startDayOfWeek = startDate.getDay();
+    startDate.setDate(startDate.getDate() - startDayOfWeek);
+
+    // 计算到今天的总天数
+    const totalDays = Math.floor((today - startDate) / (1000 * 60 * 60 * 24)) + 1;
+
+    // 创建日期数组，从最早到今天
+    const days = [];
+    for (let i = 0; i < totalDays; i++) {
+      const date = new Date(startDate);
+      date.setDate(date.getDate() + i);
+      days.push(date);
+    }
+
+    // 按照GitHub的方式排列：7行（周日到周六），按列从左到右渲染
+    days.forEach(date => {
+      // 只显示今天及之前的日期，且在有笔记的日期范围内
+      if (date > today) return;
+
+      // 使用本地时区格式化日期
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+
       const dayDiv = document.createElement('div');
       dayDiv.className = 'calendar-day';
       dayDiv.dataset.date = dateStr;
-      
+
       const notesOnDay = this.notes.filter(note => {
-        const noteDate = new Date(note.createdAt).toISOString().split('T')[0];
-        return noteDate === dateStr;
+        const noteDate = new Date(note.createdAt);
+        const noteYear = noteDate.getFullYear();
+        const noteMonth = String(noteDate.getMonth() + 1).padStart(2, '0');
+        const noteDay = String(noteDate.getDate()).padStart(2, '0');
+        const noteDateStr = `${noteYear}-${noteMonth}-${noteDay}`;
+        return noteDateStr === dateStr;
       });
       const noteCount = notesOnDay.length;
-      
+
       if (noteCount > 0) {
-        // 修复颜色等级计算：1条=level1, 2-3条=level2, 4-5条=level3, 6+条=level4
+        // 颜色等级计算：1条=level1, 2-3条=level2, 4-5条=level3, 6+条=level4
         let level;
         if (noteCount === 1) level = 1;
         else if (noteCount <= 3) level = 2;
@@ -256,41 +316,91 @@ class MemosPlugin {
         else level = 4;
         dayDiv.setAttribute('data-level', level);
       }
-      
+
       // 鼠标悬停显示提示
       dayDiv.addEventListener('mouseenter', (e) => {
         if (noteCount > 0) {
           const tooltip = document.getElementById('calendarTooltip');
-          tooltip.innerHTML = `${dateStr}<br>${noteCount} 条笔记`;
+          tooltip.innerHTML = `${dateStr} · ${noteCount} 条笔记`;
           tooltip.style.display = 'block';
-          tooltip.style.left = e.pageX + 10 + 'px';
-          tooltip.style.top = e.pageY - 30 + 'px';
+
+          // 计算位置，避免超出屏幕
+          const tooltipWidth = tooltip.offsetWidth;
+          const tooltipHeight = tooltip.offsetHeight;
+          const windowWidth = window.innerWidth;
+          const windowHeight = window.innerHeight;
+
+          let left = e.clientX + 10;
+          let top = e.clientY - tooltipHeight - 10;
+
+          // 如果靠右边，tooltip 显示在左边
+          if (left + tooltipWidth > windowWidth) {
+            left = e.clientX - tooltipWidth - 10;
+          }
+
+          // 如果靠顶部，tooltip 显示在下方
+          if (top < 10) {
+            top = e.clientY + 10;
+          }
+
+          tooltip.style.left = left + 'px';
+          tooltip.style.top = top + 'px';
         }
       });
-      
+
       dayDiv.addEventListener('mousemove', (e) => {
         if (noteCount > 0) {
           const tooltip = document.getElementById('calendarTooltip');
-          tooltip.style.left = e.pageX + 10 + 'px';
-          tooltip.style.top = e.pageY - 30 + 'px';
+          const tooltipWidth = tooltip.offsetWidth;
+          const tooltipHeight = tooltip.offsetHeight;
+          const windowWidth = window.innerWidth;
+          const windowHeight = window.innerHeight;
+
+          let left = e.clientX + 10;
+          let top = e.clientY - tooltipHeight - 10;
+
+          // 如果靠右边，tooltip 显示在左边
+          if (left + tooltipWidth > windowWidth) {
+            left = e.clientX - tooltipWidth - 10;
+          }
+
+          // 如果靠顶部，tooltip 显示在下方
+          if (top < 10) {
+            top = e.clientY + 10;
+          }
+
+          tooltip.style.left = left + 'px';
+          tooltip.style.top = top + 'px';
         }
       });
-      
+
       dayDiv.addEventListener('mouseleave', () => {
         document.getElementById('calendarTooltip').style.display = 'none';
       });
-      
-      // 双击编辑当天第一条笔记
-      dayDiv.addEventListener('dblclick', () => {
+
+      // 点击格子
+      dayDiv.addEventListener('click', () => {
         if (noteCount > 0) {
-          const firstNote = notesOnDay[0];
-          const noteIndex = this.notes.findIndex(n => n.id === firstNote.id);
-          this.showNoteModal(noteIndex);
+          // 点击绿块：显示当天的笔记
+          this.currentFilter.search = dateStr;
+          document.getElementById('searchInput').value = dateStr;
+          this.filterNotes();
+          this.renderNotes();
+          this.showToast(`已显示 ${dateStr} 的笔记`);
+        } else {
+          // 点击空白格子：取消日期筛选
+          if (this.currentFilter.search && this.currentFilter.search.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            this.currentFilter.search = '';
+            document.getElementById('searchInput').value = '';
+            this.filterNotes();
+            this.renderNotes();
+            this.showToast('已取消日期筛选');
+          }
         }
       });
-      
+
       container.appendChild(dayDiv);
-    }
+    });
   }
 
   showNoteModal(noteIndex = null) {
@@ -340,7 +450,22 @@ class MemosPlugin {
     this.availableTags.forEach(tag => {
       const tagEl = document.createElement('div');
       tagEl.className = 'tag' + (this.selectedTags.includes(tag) ? ' selected' : '');
-      tagEl.textContent = tag;
+
+      // 创建标签文本节点
+      const tagText = document.createElement('span');
+      tagText.textContent = tag;
+      tagEl.appendChild(tagText);
+
+      // 为所有标签添加删除按钮
+      const deleteBtn = document.createElement('span');
+      deleteBtn.className = 'tag-delete';
+      deleteBtn.textContent = '×';
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.deleteTag(tag);
+      });
+      tagEl.appendChild(deleteBtn);
+
       tagEl.addEventListener('click', () => {
         this.toggleTag(tag);
       });
@@ -438,7 +563,44 @@ class MemosPlugin {
     const index = this.selectedTags.indexOf(tag);
     if (index > -1) {
       this.selectedTags.splice(index, 1);
-      this.renderSelectedTags();
+      this.renderTagsWrapper();
+    }
+  }
+
+  deleteTag(tag) {
+    if (confirm(`确定要删除标签"${tag}"吗？这将从所有笔记中移除此标签。`)) {
+      // 从所有笔记中删除此标签
+      this.notes.forEach(note => {
+        const tagIndex = note.tags.indexOf(tag);
+        if (tagIndex > -1) {
+          note.tags.splice(tagIndex, 1);
+        }
+      });
+
+      // 从当前选中的标签中移除
+      const selectedIndex = this.selectedTags.indexOf(tag);
+      if (selectedIndex > -1) {
+        this.selectedTags.splice(selectedIndex, 1);
+      }
+
+      // 从可用标签列表中移除
+      const availableIndex = this.availableTags.indexOf(tag);
+      if (availableIndex > -1) {
+        this.availableTags.splice(availableIndex, 1);
+      }
+
+      // 从当前过滤器中移除该标签
+      const filterIndex = this.currentFilter.tags.indexOf(tag);
+      if (filterIndex > -1) {
+        this.currentFilter.tags.splice(filterIndex, 1);
+      }
+
+      this.saveNotes();
+      this.renderTagsWrapper();
+      this.renderTags();
+      this.filterNotes();
+      this.renderCalendar();
+      this.showToast(`标签"${tag}"已删除`);
     }
   }
 
@@ -446,22 +608,30 @@ class MemosPlugin {
     const title = document.getElementById('noteTitle').value.trim();
     const content = document.getElementById('noteContent').value.trim();
     const tags = [...this.selectedTags];
-    
-    const note = {
-      id: Date.now(),
-      title,
-      content,
-      tags,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    
+
     if (this.editingIndex !== null) {
-      this.notes[this.editingIndex] = { ...this.notes[this.editingIndex], ...note };
+      // 编辑现有笔记，保留原有的 createdAt
+      const existingNote = this.notes[this.editingIndex];
+      this.notes[this.editingIndex] = {
+        ...existingNote,
+        title,
+        content,
+        tags,
+        updatedAt: new Date().toISOString()
+      };
     } else {
+      // 新建笔记
+      const note = {
+        id: Date.now(),
+        title,
+        content,
+        tags,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
       this.notes.unshift(note);
     }
-    
+
     this.saveNotes();
     this.filterNotes();
     this.renderTags();
@@ -520,9 +690,11 @@ class MemosPlugin {
             const text = await file.text();
             const importedNotes = JSON.parse(text);
             if (Array.isArray(importedNotes)) {
-              this.notes = [...importedNotes, ...this.notes];
+              // 清空原有笔记，只保留导入的笔记
+              this.notes = importedNotes;
               this.saveNotes();
               this.filterNotes();
+              this.renderNotes();
               this.renderTags();
               this.renderCalendar();
               alert('导入成功');
