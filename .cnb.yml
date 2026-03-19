@@ -37,3 +37,15 @@ main:
             tag: v1.1.0
             attachments:
               - "PasteNote.zip"
+    - services:
+        - docker
+      imports:
+        - https://cnb.cool/IIIStudio/key/-/blob/main/cos/cnb.yml
+      stages:
+        - name: 上传COS
+          image: tencentcom/coscli
+          script: |
+            echo "当前仓库名称: $CNB_REPO_NAME"
+            coscli config set --secret_id $COS_SECRET_ID --secret_key $COS_SECRET_KEY
+            coscli config add --init-skip=true -b $COS_BUCKET -r $COS_REGION
+            coscli cp ./PasteNote cos://$COS_BUCKET/$CNB_REPO_NAME  -r
