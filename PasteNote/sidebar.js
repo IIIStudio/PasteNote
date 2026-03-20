@@ -178,9 +178,17 @@ class MemosPlugin {
         if (e.target.classList.contains('note-edit-btn') || e.target.classList.contains('note-delete-btn') || e.target.classList.contains('note-pin-btn')) {
           return;
         }
-        navigator.clipboard.writeText(note.content).then(() => {
-          this.showToast('已复制笔记内容');
-        });
+        // 检查是否有 url 标签（不区分大小写）
+        const hasUrlTag = note.tags.some(tag => tag.toLowerCase() === 'url');
+        if (hasUrlTag) {
+          // 如果有 url 标签，跳转到链接（笔记内容）
+          window.open(note.content, '_blank');
+        } else {
+          // 否则复制笔记内容
+          navigator.clipboard.writeText(note.content).then(() => {
+            this.showToast('已复制笔记内容');
+          });
+        }
       });
 
       // 置顶按钮点击事件
