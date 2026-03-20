@@ -501,7 +501,7 @@ h1 {
   background: #f5f5f5;
 }
 
-.tag {
+#tagsWrapper .tag {
   padding: 4px 10px;
   border: 1px solid #000;
   font-size: 11px;
@@ -512,16 +512,16 @@ h1 {
   position: relative;
 }
 
-.tag:hover {
+#tagsWrapper .tag:hover {
   background: #f5f5f5;
 }
 
-.tag.selected {
+#tagsWrapper .tag.selected {
   background: #000;
   color: #fff;
 }
 
-.tag.selected:hover {
+#tagsWrapper .tag.selected:hover {
   background: #000;
 }
 
