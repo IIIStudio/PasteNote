@@ -55,6 +55,10 @@ class MemosPlugin {
       this.filterNotes();
     });
 
+    document.getElementById('addUrlNoteBtn').addEventListener('click', () => {
+      this.addUrlNote();
+    });
+
     document.getElementById('addNoteBtn').addEventListener('click', () => {
       this.showNoteModal();
     });
@@ -756,6 +760,41 @@ class MemosPlugin {
     setTimeout(() => {
       document.body.removeChild(toast);
     }, 2000);
+  }
+
+  async addUrlNote() {
+    // 获取当前活动标签页的信息
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.url) {
+      this.showToast('无法获取当前页面链接');
+      return;
+    }
+
+    // 获取页面标题并去掉 " - " 后面的内容（包含前后空格）
+    let title = tab.title || '';
+    const dashIndex = title.indexOf(' - ');
+    if (dashIndex > -1) {
+      title = title.substring(0, dashIndex);
+    }
+    title = title.trim();
+
+    // 创建新笔记
+    const newNote = {
+      id: Date.now().toString(),
+      title: title,
+      content: tab.url,
+      tags: ['URL'],
+      createdAt: new Date().toISOString(),
+      pinned: false
+    };
+
+    // 保存笔记
+    this.notes.unshift(newNote);
+    await this.saveNotes();
+    this.filterNotes();
+    this.renderTags();
+    this.renderCalendar();
+    this.showToast('已添加 URL 笔记');
   }
 
   async showSyncModal() {

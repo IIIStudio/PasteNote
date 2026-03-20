@@ -278,6 +278,11 @@ h1 {
   margin-bottom: 12px;
 }
 
+.section-actions {
+  display: flex;
+  gap: 6px;
+}
+
 .notes-list {
   max-height: 300px;
   overflow-y: auto;
