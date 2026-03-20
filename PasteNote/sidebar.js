@@ -6,16 +6,46 @@ class MemosPlugin {
     this.notes = [];
     this.filteredNotes = [];
     this.currentFilter = { search: '', tags: [] };
+    this.currentTabInfo = null; // 保存当前标签页信息
     this.init();
   }
 
   async init() {
     await this.loadNotes();
+    await this.getCurrentTabInfo();
     this.bindEvents();
     this.renderNotes();
     this.renderTags();
     this.renderCalendar();
     this.updateSyncButtons();
+    this.listenForTabChanges();
+  }
+
+  async getCurrentTabInfo() {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab) {
+        this.currentTabInfo = {
+          url: tab.url,
+          title: tab.title
+        };
+      }
+    } catch (error) {
+      console.error('Failed to get current tab info:', error);
+    }
+  }
+
+  listenForTabChanges() {
+    // 监听来自 background 的消息
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.type === 'tabChanged' || message.type === 'tabUpdated') {
+        this.currentTabInfo = {
+          url: message.url,
+          title: message.title
+        };
+        console.log('Tab info updated:', this.currentTabInfo);
+      }
+    });
   }
 
   async loadNotes() {
@@ -763,15 +793,31 @@ class MemosPlugin {
   }
 
   async addUrlNote() {
-    // 获取当前活动标签页的信息
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab || !tab.url) {
-      this.showToast('无法获取当前页面链接');
-      return;
+    // 使用保存的当前标签页信息
+    let url = '';
+    let title = '';
+
+    if (this.currentTabInfo && this.currentTabInfo.url) {
+      url = this.currentTabInfo.url;
+      title = this.currentTabInfo.title || '';
+    } else {
+      // 如果没有保存的信息，尝试获取
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab && tab.url) {
+          url = tab.url;
+          title = tab.title || '';
+        } else {
+          this.showToast('无法获取当前页面链接');
+          return;
+        }
+      } catch (error) {
+        this.showToast('无法获取当前页面链接');
+        return;
+      }
     }
 
     // 获取页面标题并去掉 " - " 后面的内容（包含前后空格）
-    let title = tab.title || '';
     const dashIndex = title.indexOf(' - ');
     if (dashIndex > -1) {
       title = title.substring(0, dashIndex);
@@ -782,7 +828,7 @@ class MemosPlugin {
     const newNote = {
       id: Date.now().toString(),
       title: title,
-      content: tab.url,
+      content: url,
       tags: ['URL'],
       createdAt: new Date().toISOString(),
       pinned: false
