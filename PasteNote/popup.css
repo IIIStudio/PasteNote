@@ -130,6 +130,8 @@ h1 {
   font-size: 10px;
   cursor: pointer;
   transition: background 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .tag:hover {
