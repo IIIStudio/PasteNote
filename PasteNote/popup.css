@@ -344,6 +344,9 @@ h1 {
   font-weight: 600;
   margin-bottom: 4px;
   padding-right: 40px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .note-preview {
@@ -351,6 +354,9 @@ h1 {
   color: #666;
   margin-bottom: 4px;
   padding-right: 40px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .note-tags {
