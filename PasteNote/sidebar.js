@@ -817,7 +817,11 @@ class MemosPlugin {
       }
     }
 
-    // 获取页面标题并去掉 " - " 后面的内容（包含前后空格）
+    // 清理 HTML 实体和特殊格式
+    title = title.replace(/&nbsp;\s*-\s*&nbsp;/gi, ' - ');
+    title = title.replace(/&nbsp;/gi, ' ');
+
+    // 去掉 " - " 后面的内容（包含前后空格）
     const dashIndex = title.indexOf(' - ');
     if (dashIndex > -1) {
       title = title.substring(0, dashIndex);
