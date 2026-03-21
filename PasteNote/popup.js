@@ -921,7 +921,7 @@ class MemosPlugin {
     title = title.replace(/&nbsp;\s*-\s*&nbsp;/gi, ' - ');
     title = title.replace(/&nbsp;/gi, ' ');
 
-    // 去掉 " - " 后面的内容（包含前后空格）
+    // 去掉第一个 " - " 及其后面的所有内容
     const dashIndex = title.indexOf(' - ');
     if (dashIndex > -1) {
       title = title.substring(0, dashIndex);
