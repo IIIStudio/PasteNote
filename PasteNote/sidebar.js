@@ -139,6 +139,43 @@ class MemosPlugin {
     document.getElementById('exportBtn').addEventListener('click', () => {
       this.exportNotes();
     });
+
+    // 标签列表鼠标拖动功能
+    this.setupTagsListDrag();
+  }
+
+  setupTagsListDrag() {
+    const tagsList = document.getElementById('tagsContainer');
+    if (!tagsList) return;
+
+    let isDown = false;
+    let startX;
+    let scrollLeft;
+
+    tagsList.addEventListener('mousedown', (e) => {
+      isDown = true;
+      tagsList.classList.add('active');
+      startX = e.pageX - tagsList.offsetLeft;
+      scrollLeft = tagsList.scrollLeft;
+    });
+
+    tagsList.addEventListener('mouseleave', () => {
+      isDown = false;
+      tagsList.classList.remove('active');
+    });
+
+    tagsList.addEventListener('mouseup', () => {
+      isDown = false;
+      tagsList.classList.remove('active');
+    });
+
+    tagsList.addEventListener('mousemove', (e) => {
+      if (!isDown) return;
+      e.preventDefault();
+      const x = e.pageX - tagsList.offsetLeft;
+      const walk = (x - startX) * 2;
+      tagsList.scrollLeft = scrollLeft - walk;
+    });
   }
 
   filterNotes() {

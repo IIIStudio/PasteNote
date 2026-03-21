@@ -100,12 +100,28 @@ h1 {
 .tags-label {
   font-size: 12px;
   font-weight: 500;
+  flex-shrink: 0;
 }
 
 .tags-list {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.tags-list::-webkit-scrollbar {
+  display: none;
+}
+
+.tags-list:active {
+  cursor: grabbing;
 }
 
 .tag {
