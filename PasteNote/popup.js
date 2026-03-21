@@ -917,30 +917,19 @@ class MemosPlugin {
     // 获取页面标题并清理多余内容
     let title = tab.title || '';
 
-    console.log('原始标题:', title);
-
     // 统一处理各种连字符和空格格式
     // 先将所有 &nbsp; 替换为普通空格
     title = title.replace(/&nbsp;/gi, ' ');
 
-    console.log('替换&nbsp;后:', title);
-
     // 处理各种连字符情况：&nbsp;-&nbsp;、&nbsp;-、-&nbsp;、 -
     title = title.replace(/\s*-\s*/g, ' - ');
 
-    console.log('统一连字符后:', title);
-
     // 去掉第一个 " - " 及其后面的所有内容
     const dashIndex = title.indexOf(' - ');
-
-    console.log('找到 - 位置:', dashIndex, '标题长度:', title.length);
-
     if (dashIndex > -1) {
       title = title.substring(0, dashIndex);
     }
     title = title.trim();
-
-    console.log('最终标题:', title);
 
     // 创建新笔记
     const newNote = {
