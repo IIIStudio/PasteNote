@@ -14,4 +14,4 @@ S3自动上传
 
 下载PasteNote.zip之后打开，edge://extensions/ 开启开发者模式，把文件拖进去安装成功，右键插件可以侧边栏。
 
-![](./image/4.png)
+![](./image/4.jpg)
