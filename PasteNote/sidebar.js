@@ -854,9 +854,12 @@ class MemosPlugin {
       }
     }
 
-    // 清理 HTML 实体和特殊格式
-    title = title.replace(/&nbsp;\s*-\s*&nbsp;/gi, ' - ');
+    // 统一处理各种连字符和空格格式
+    // 先将所有 &nbsp; 替换为普通空格
     title = title.replace(/&nbsp;/gi, ' ');
+
+    // 处理各种连字符情况：&nbsp;-&nbsp;、&nbsp;-、-&nbsp;、 -
+    title = title.replace(/\s*-\s*/g, ' - ');
 
     // 去掉第一个 " - " 及其后面的所有内容
     const dashIndex = title.indexOf(' - ');
