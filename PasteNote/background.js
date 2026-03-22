@@ -1,6 +1,29 @@
 // Background service worker for PasteNote
 chrome.runtime.onInstalled.addListener(() => {
   console.log('PasteNote extension installed');
+
+  // 创建右键菜单
+  chrome.contextMenus.create({
+    id: 'pastenote-menu',
+    title: 'PasteNote - 插入笔记',
+    contexts: ['editable']
+  });
+});
+
+// 处理右键菜单点击
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  console.log('右键菜单被点击:', info.menuItemId);
+  if (info.menuItemId === 'pastenote-menu') {
+    console.log('发送消息到 content script, tabId:', tab.id);
+    // 向 content script 发送消息打开模态框
+    chrome.tabs.sendMessage(tab.id, {
+      action: 'openModal'
+    }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('发送消息失败:', chrome.runtime.lastError);
+      }
+    });
+  }
 });
 
 // Handle storage changes
