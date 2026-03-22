@@ -28,15 +28,6 @@ main:
             branch: main
             sync_mode: mirror  # 镜像模式，直接覆盖
             force: true
-        - name: 压缩文件
-          timeout: 7200s
-          script: apt-get update && apt-get install -y zip && cd /workspace/PasteNote && zip -r ../PasteNote.zip *
-        - name: 上传附件
-          image: cnbcool/attachments:latest
-          settings:
-            tag: v1.1.0
-            attachments:
-              - "PasteNote.zip"
     - services:
         - docker
       imports:
@@ -49,3 +40,15 @@ main:
             coscli config set --secret_id $COS_SECRET_ID --secret_key $COS_SECRET_KEY
             coscli config add --init-skip=true -b $COS_BUCKET -r $COS_REGION
             coscli cp ./PasteNote cos://$COS_BUCKET/$CNB_REPO_NAME  -r
+    - services:
+        - docker
+      stages:
+        - name: 压缩文件
+          timeout: 7200s
+          script: apt-get update && apt-get install -y zip && cd /workspace/PasteNote && zip -r ../PasteNote.zip *
+        - name: 上传附件
+          image: cnbcool/attachments:latest
+          settings:
+            tag: v1.1.0
+            attachments:
+              - "PasteNote.zip"
