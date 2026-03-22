@@ -3,7 +3,13 @@ class PasteNoteModal {
   constructor() {
     this.modal = null;
     this.notes = [];
+    this.filteredNotes = [];
+    this.currentPage = 1;
+    this.pageSize = 20;
+    this.isLoading = false;
+    this.renderedCount = 0;
     this.keyboardHandler = this.handleKeyboard.bind(this);
+    this.scrollHandler = null;
     this.lastFocusedElement = null;
     this.insertTargetElement = null; // 专门记录插入目标
 
@@ -52,6 +58,9 @@ class PasteNoteModal {
     // 加载笔记
     const result = await chrome.storage.local.get(['memos_notes']);
     this.notes = result.memos_notes || [];
+    this.filteredNotes = [...this.notes];
+    this.currentPage = 1;
+    this.renderedCount = 0;
     this.selectedTag = null;
 
     // 在打开模态框时记录插入目标
@@ -63,8 +72,14 @@ class PasteNoteModal {
     }
 
     this.modal.style.display = 'flex';
-    this.renderTags();
-    this.renderNotes();
+
+    // 使用 requestAnimationFrame 确保 DOM 已更新
+    requestAnimationFrame(() => {
+      this.renderTags();
+      this.renderNotes();
+      // 重新绑定滚动事件
+      this.bindScrollEvent();
+    });
 
     // 添加键盘事件监听
     document.addEventListener('keydown', this.keyboardHandler);
@@ -199,9 +214,11 @@ class PasteNoteModal {
     content.style.cssText = `
       flex: 1;
       overflow-y: auto;
+      overflow-x: hidden;
       padding: 12px 16px;
       scrollbar-width: thin;
       scrollbar-color: #999 #f0f0f0;
+      min-height: 0;
     `;
 
     // 组装
@@ -310,9 +327,12 @@ class PasteNoteModal {
       background: ${!this.selectedTag ? '#000' : '#fff'};
       color: ${!this.selectedTag ? '#fff' : '#000'};
     `;
-    allTag.textContent = '全部';
+      allTag.textContent = '全部';
     allTag.addEventListener('click', () => {
       this.selectedTag = null;
+      this.currentPage = 1;
+      this.renderedCount = 0;
+      this.filteredNotes = [...this.notes];
       this.renderTags();
       this.renderNotes();
     });
@@ -334,6 +354,15 @@ class PasteNoteModal {
       tagElement.textContent = tag;
       tagElement.addEventListener('click', () => {
         this.selectedTag = this.selectedTag === tag ? null : tag;
+        this.currentPage = 1;
+        this.renderedCount = 0;
+        // 根据选中的标签过滤
+        this.filteredNotes = [...this.notes];
+        if (this.selectedTag) {
+          this.filteredNotes = this.filteredNotes.filter(note =>
+            note.tags && note.tags.includes(this.selectedTag)
+          );
+        }
         this.renderTags();
         this.renderNotes();
       });
@@ -342,8 +371,6 @@ class PasteNoteModal {
   }
 
   async insertNoteContent(content) {
-    console.log('开始插入内容:', content);
-
     // 使用打开模态框时记录的插入目标
     let targetInput = this.insertTargetElement;
 
@@ -353,12 +380,9 @@ class PasteNoteModal {
     }
 
     if (!targetInput || !this.isEditableElement(targetInput)) {
-      console.error('未找到可编辑的输入框');
       alert('未找到可编辑的输入框，请先点击输入框');
       return;
     }
-
-    console.log('找到输入框:', targetInput);
 
     // 清空现有内容
     if (targetInput.isContentEditable) {
@@ -383,8 +407,6 @@ class PasteNoteModal {
   }
 
   async insertInput(element, content) {
-    console.log('使用 input/textarea 方式插入');
-
     const newValue = content;
     element.value = newValue;
 
@@ -393,13 +415,9 @@ class PasteNoteModal {
 
     element.dispatchEvent(new Event('input', { bubbles: true }));
     element.dispatchEvent(new Event('change', { bubbles: true }));
-
-    console.log('插入完成，光标位置:', newCursorPos);
   }
 
   async insertContentEditable(element, content) {
-    console.log('使用 contentEditable 方式插入');
-
     const selection = window.getSelection();
     let inserted = false;
 
@@ -449,40 +467,53 @@ class PasteNoteModal {
     }
 
     element.dispatchEvent(new Event('input', { bubbles: true }));
-
-    console.log('contentEditable 插入完成');
   }
 
   renderNotes() {
     const content = document.getElementById('pastenote-notes-content');
     if (!content) return;
 
-    // 根据选中的标签过滤
-    let filteredNotes = this.notes;
-    if (this.selectedTag) {
-      filteredNotes = this.notes.filter(note =>
-        note.tags && note.tags.includes(this.selectedTag)
-      );
+    // 如果是第一次加载或重新渲染，清空容器
+    if (this.currentPage === 1) {
+      content.innerHTML = '';
+      this.renderedCount = 0;
     }
 
-    content.innerHTML = '';
-
-    if (filteredNotes.length === 0) {
-      content.innerHTML = `
-        <div style="
-          text-align: center;
-          padding: 40px 20px;
-          color: #999;
-        ">
-          <div style="font-size: 36px; margin-bottom: 12px;">📝</div>
-          <div style="font-size: 14px; margin-bottom: 6px;">暂无笔记</div>
-          <div style="font-size: 12px;">请先创建一些笔记</div>
-        </div>
-      `;
+    // 如果没有笔记
+    if (this.filteredNotes.length === 0) {
+      if (this.currentPage === 1) {
+        content.innerHTML = `
+          <div style="
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+          ">
+            <div style="font-size: 36px; margin-bottom: 12px;">📝</div>
+            <div style="font-size: 14px; margin-bottom: 6px;">暂无笔记</div>
+            <div style="font-size: 12px;">请先创建一些笔记</div>
+          </div>
+        `;
+      }
       return;
     }
 
-    filteredNotes.forEach((note) => {
+    // 计算要渲染的笔记范围
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    const endIndex = Math.min(startIndex + this.pageSize, this.filteredNotes.length);
+
+    // 如果没有更多笔记，移除加载提示
+    if (startIndex >= this.filteredNotes.length) {
+      const loadingIndicator = document.getElementById('pastenote-loading');
+      if (loadingIndicator) {
+        loadingIndicator.textContent = '已加载全部笔记';
+        loadingIndicator.style.display = 'block';
+      }
+      return;
+    }
+
+    // 渲染当前页的笔记
+    for (let i = startIndex; i < endIndex; i++) {
+      const note = this.filteredNotes[i];
       const noteItem = document.createElement('div');
       noteItem.className = 'pastenote-note-item';
       noteItem.style.cssText = `
@@ -559,7 +590,11 @@ class PasteNoteModal {
       });
 
       content.appendChild(noteItem);
-    });
+      this.renderedCount = endIndex;
+    }
+
+    // 更新加载提示
+    this.updateLoadingIndicator();
   }
 
   filterNotes(keyword) {
@@ -567,23 +602,25 @@ class PasteNoteModal {
     if (!content) return;
 
     // 根据选中的标签过滤
-    let filteredNotes = this.notes;
+    this.filteredNotes = this.notes;
     if (this.selectedTag) {
-      filteredNotes = filteredNotes.filter(note =>
+      this.filteredNotes = this.filteredNotes.filter(note =>
         note.tags && note.tags.includes(this.selectedTag)
       );
     }
 
     // 再根据关键词过滤
-    filteredNotes = filteredNotes.filter(note =>
+    this.filteredNotes = this.filteredNotes.filter(note =>
       (note.title || '').toLowerCase().includes(keyword.toLowerCase()) ||
       (note.content || '').toLowerCase().includes(keyword.toLowerCase()) ||
       (note.tags && note.tags.some(tag => tag.toLowerCase().includes(keyword.toLowerCase())))
     );
 
-    content.innerHTML = '';
+    this.currentPage = 1;
+    this.renderedCount = 0;
 
-    if (filteredNotes.length === 0) {
+    if (this.filteredNotes.length === 0) {
+      content.innerHTML = '';
       content.innerHTML = `
         <div style="
           text-align: center;
@@ -597,84 +634,7 @@ class PasteNoteModal {
       return;
     }
 
-    filteredNotes.forEach((note) => {
-      const noteItem = document.createElement('div');
-      noteItem.className = 'pastenote-note-item';
-      noteItem.style.cssText = `
-        border: 1px solid #000;
-        padding: 8px;
-        margin-bottom: 8px;
-        cursor: pointer;
-        position: relative;
-      `;
-
-      // 创建时间
-      const createTime = new Date(note.createdAt).toLocaleString('zh-CN');
-
-      noteItem.innerHTML = `
-        <div style="
-          font-weight: 600;
-          margin-bottom: 4px;
-          padding-right: 40px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        ">
-          ${this.escapeHtml(note.title || '无标题')}
-        </div>
-        <div style="
-          font-size: 12px;
-          color: #666;
-          margin-bottom: 4px;
-          padding-right: 40px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        ">
-          ${this.escapeHtml(note.content.substring(0, 50))}${note.content.length > 50 ? '...' : ''}
-        </div>
-        ${note.tags && note.tags.length > 0 ? `
-          <div style="
-            display: flex;
-            gap: 4px;
-            flex-wrap: wrap;
-            padding-right: 40px;
-          ">
-            ${note.tags.map(tag => `
-              <span style="
-                font-size: 10px;
-                padding: 1px 4px;
-                border: 1px solid #999;
-              ">
-                ${this.escapeHtml(tag)}
-              </span>
-            `).join('')}
-          </div>
-        ` : ''}
-        <div style="
-          font-size: 10px;
-          color: #999;
-          position: absolute;
-          bottom: 1px;
-          right: 2px;
-        ">${createTime}</div>
-      `;
-
-      // 鼠标悬停效果
-      noteItem.addEventListener('mouseenter', () => {
-        noteItem.style.background = '#f5f5f5';
-      });
-      noteItem.addEventListener('mouseleave', () => {
-        noteItem.style.background = '#fff';
-      });
-
-      // 点击插入内容到输入框
-      noteItem.addEventListener('click', () => {
-        this.insertNoteContent(note.content || '');
-      });
-
-      content.appendChild(noteItem);
-    });
+    this.renderNotes();
   }
 
   handleKeyboard(event) {
@@ -686,6 +646,107 @@ class PasteNoteModal {
     if (event.key === 'Escape') {
       event.preventDefault();
       this.hide();
+    }
+  }
+
+  updateLoadingIndicator() {
+    const content = document.getElementById('pastenote-notes-content');
+    if (!content) return;
+
+    // 创建或更新加载提示
+    let loadingIndicator = document.getElementById('pastenote-loading');
+
+    if (this.renderedCount < this.filteredNotes.length) {
+      if (!loadingIndicator) {
+        loadingIndicator = document.createElement('div');
+        loadingIndicator.id = 'pastenote-loading';
+        loadingIndicator.style.cssText = `
+          text-align: center;
+          padding: 20px;
+          color: #999;
+          font-size: 14px;
+          display: none;
+        `;
+        loadingIndicator.textContent = '加载中...';
+        content.appendChild(loadingIndicator);
+      }
+      loadingIndicator.style.display = 'none';
+    } else {
+      if (!loadingIndicator) {
+        loadingIndicator = document.createElement('div');
+        loadingIndicator.id = 'pastenote-loading';
+        loadingIndicator.style.cssText = `
+          text-align: center;
+          padding: 20px;
+          color: #999;
+          font-size: 14px;
+        `;
+        loadingIndicator.textContent = '已加载全部笔记';
+        content.appendChild(loadingIndicator);
+      }
+      loadingIndicator.textContent = '已加载全部笔记';
+      loadingIndicator.style.display = 'block';
+    }
+  }
+
+  bindScrollEvent() {
+    const content = document.getElementById('pastenote-notes-content');
+    if (!content) {
+      return;
+    }
+
+    // 移除旧的监听器（如果存在）
+    if (this.scrollHandler) {
+      content.removeEventListener('scroll', this.scrollHandler);
+    }
+
+    // 创建并绑定新的监听器
+    this.scrollHandler = () => {
+      // 如果正在加载或已加载全部，不处理
+      if (this.isLoading || this.renderedCount >= this.filteredNotes.length) {
+        return;
+      }
+
+      // 计算滚动位置
+      const scrollTop = content.scrollTop || 0;
+      const scrollHeight = content.scrollHeight || 0;
+      const clientHeight = content.clientHeight || 0;
+
+      // 当滚动到距离底部150px时开始加载
+      const threshold = 150;
+      const distanceToBottom = scrollHeight - scrollTop - clientHeight;
+
+      // 使用更宽松的条件：距离底部小于等于阈值时触发
+      if (distanceToBottom <= threshold) {
+        this.loadMoreNotes();
+      }
+    };
+
+    content.addEventListener('scroll', this.scrollHandler);
+  }
+
+  async loadMoreNotes() {
+    if (this.isLoading) return;
+
+    this.isLoading = true;
+
+    const loadingIndicator = document.getElementById('pastenote-loading');
+    if (loadingIndicator) {
+      loadingIndicator.textContent = '加载中...';
+      loadingIndicator.style.display = 'block';
+    }
+
+    // 模拟异步加载延迟
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    this.currentPage++;
+    this.renderNotes();
+
+    this.isLoading = false;
+
+    // 隐藏加载提示
+    if (loadingIndicator) {
+      loadingIndicator.style.display = 'none';
     }
   }
 
@@ -728,9 +789,7 @@ const pastenoteModal = new PasteNoteModal();
 
 // 监听来自 background 的消息
 chrome.runtime.onMessage.addListener((message) => {
-  console.log('收到消息:', message);
   if (message.action === 'openModal') {
-    console.log('打开模态框');
     pastenoteModal.show();
     return true;
   }

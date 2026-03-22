@@ -4,7 +4,7 @@ class MemosPlugin {
     this.filteredNotes = [];
     this.currentFilter = { search: '', tags: [] };
     this.currentPage = 1;
-    this.pageSize = 10;
+    this.pageSize = 20;
     this.isLoading = false;
     this.init();
   }
@@ -45,9 +45,7 @@ class MemosPlugin {
     try {
       const sync = new CloudSync(config);
       await sync.upload(this.notes);
-      console.log('已自动同步到云端');
     } catch (err) {
-      console.error('自动同步失败:', err.message);
     }
   }
 
@@ -316,6 +314,8 @@ class MemosPlugin {
         loadingIndicator.textContent = '加载中...';
         document.getElementById('notesList').appendChild(loadingIndicator);
       }
+      // 有更多笔记时，不显示任何提示，等待滚动触发
+      loadingIndicator.style.display = 'none';
     } else {
       // 没有更多笔记，显示已加载全部
       if (!loadingIndicator) {
@@ -328,6 +328,7 @@ class MemosPlugin {
           color: #999;
           font-size: 14px;
         `;
+        document.getElementById('notesList').appendChild(loadingIndicator);
       }
       loadingIndicator.textContent = '已加载全部笔记';
       loadingIndicator.style.display = 'block';
@@ -335,7 +336,12 @@ class MemosPlugin {
   }
 
   bindScrollEvent() {
-    const scrollContainer = document.querySelector('.container') || document.documentElement;
+    // 滚动容器应该是 notesList 元素
+    const scrollContainer = document.getElementById('notesList');
+
+    if (!scrollContainer) {
+      return;
+    }
 
     scrollContainer.addEventListener('scroll', () => {
       // 如果正在加载或已加载全部，不处理
@@ -344,13 +350,16 @@ class MemosPlugin {
       }
 
       // 计算滚动位置
-      const scrollTop = scrollContainer.scrollTop || window.pageYOffset;
-      const scrollHeight = scrollContainer.scrollHeight || document.documentElement.scrollHeight;
-      const clientHeight = scrollContainer.clientHeight || window.innerHeight;
+      const scrollTop = scrollContainer.scrollTop || 0;
+      const scrollHeight = scrollContainer.scrollHeight || 0;
+      const clientHeight = scrollContainer.clientHeight || 0;
 
-      // 当滚动到距离底部100px时开始加载
-      const threshold = 100;
-      if (scrollHeight - scrollTop - clientHeight < threshold) {
+      // 当滚动到距离底部150px时开始加载
+      const threshold = 150;
+      const distanceToBottom = scrollHeight - scrollTop - clientHeight;
+
+      // 使用更宽松的条件：距离底部小于等于阈值时触发
+      if (distanceToBottom <= threshold) {
         this.loadMoreNotes();
       }
     });
@@ -374,6 +383,11 @@ class MemosPlugin {
     this.renderNotes();
 
     this.isLoading = false;
+
+    // 隐藏加载提示
+    if (loadingIndicator) {
+      loadingIndicator.style.display = 'none';
+    }
   }
 
   renderTags() {
