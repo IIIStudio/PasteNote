@@ -1132,8 +1132,8 @@ class MemosPlugin {
     // 先将所有 &nbsp; 替换为普通空格
     title = title.replace(/&nbsp;/gi, ' ');
 
-    // 处理各种连字符情况：&nbsp;-&nbsp;、&nbsp;-、-&nbsp;、 -
-    title = title.replace(/\s*-\s*/g, ' - ');
+    // 处理前后带空格的连字符：&nbsp;-&nbsp;、 - 、&nbsp;-、-&nbsp;
+    title = title.replace(/\s+-\s+/g, ' - ');
 
     // 去掉第一个 " - " 及其后面的所有内容
     const dashIndex = title.indexOf(' - ');

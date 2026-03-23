@@ -9,16 +9,38 @@ class MemosPlugin {
     this.init();
   }
 
-   async init() {
-      await this.loadNotes();
-      this.bindEvents();
-      // 在 init 中调用 filterNotes 而不是 renderNotes，确保正确的排序
-      this.filterNotes();
-      this.renderTags();
-      this.renderCalendar();
-      this.updateSyncButtons();
-      this.bindScrollEvent();
+  applyColorToEditor(color = this.currentColor) {
+    const modal = document.getElementById('noteModal');
+    if (modal && modal.style.display === 'block') {
+      const titleInput = document.getElementById('noteTitle');
+      const contentTextarea = document.getElementById('noteContent');
+      
+      if (color === '767676') {
+        // 灰色背景，字体改为白色
+        titleInput.style.backgroundColor = '#767676';
+        titleInput.style.color = '#ffffff';
+        contentTextarea.style.backgroundColor = '#767676';
+        contentTextarea.style.color = '#ffffff';
+      } else {
+        // 其他颜色，恢复默认样式
+        titleInput.style.backgroundColor = '';
+        titleInput.style.color = '';
+        contentTextarea.style.backgroundColor = '';
+        contentTextarea.style.color = '';
+      }
     }
+  }
+
+   async init() {
+       await this.loadNotes();
+       this.bindEvents();
+       // 在 init 中调用 filterNotes 而不是 renderNotes，确保正确的排序
+       this.filterNotes();
+       this.renderTags();
+       this.renderCalendar();
+       this.updateSyncButtons();
+       this.bindScrollEvent();
+     }
 
     async loadNotes() {
        const result = await chrome.storage.local.get(['memos_notes']);
@@ -97,14 +119,35 @@ class MemosPlugin {
     await chrome.storage.local.set({ memos_color: this.currentColor });
   }
 
-  bindColorPickerEvents() {
-    document.querySelectorAll('.color-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const color = btn.dataset.color;
-        this.setColor(color);
-      });
-    });
-  }
+   bindColorPickerEvents() {
+     document.querySelectorAll('.color-btn').forEach(btn => {
+       btn.addEventListener('click', (e) => {
+         const color = e.target.dataset.color;
+         this.currentColor = color;
+         this.saveColor();
+         
+         // 应用到颜色按钮状态
+         document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+         e.target.classList.add('active');
+         
+         // 应用到页面背景
+         document.body.className = '';
+         if (color !== 'white') {
+           document.body.classList.add('bg-' + this.getColorClassName(color));
+         }
+         
+         // 保存到浏览器存储
+         this.saveColor();
+         
+         // 应用颜色到新建笔记
+         if (typeof this.applyColorToEditor === 'function') {
+           this.applyColorToEditor();
+         }
+         
+         this.showToast(`颜色已切换为 ${color === 'white' ? '默认' : '#' + color}`);
+       });
+     });
+   }
 
   setColor(color) {
     this.currentColor = color;
@@ -795,37 +838,33 @@ class MemosPlugin {
     }
   }
 
-   showNoteModal(noteIndex = null) {
-      this.editingIndex = noteIndex;
-      this.selectedTags = [];
-      this.availableTags = []; // 存储可用标签
-      const modal = document.getElementById('noteModal');
-      const title = document.getElementById('modalTitle');
-      const pinnedBanner = document.getElementById('pinnedBanner');
+    showNoteModal(noteIndex = null) {
+       this.editingIndex = noteIndex;
+       this.selectedTags = [];
+       this.availableTags = []; // 存储可用标签
+       const modal = document.getElementById('noteModal');
+       const title = document.getElementById('modalTitle');
+       const pinnedBanner = document.getElementById('pinnedBanner');
 
-      if (noteIndex !== null) {
-        title.textContent = '编辑笔记';
-        const note = this.notes[noteIndex];
-        document.getElementById('noteTitle').value = note.title;
-        document.getElementById('noteContent').value = note.content;
-        this.selectedTags = [...note.tags];
-        // 显示置顶横幅
-        if (note.pinned) {
-          pinnedBanner.style.display = 'flex';
-        } else {
-          pinnedBanner.style.display = 'none';
-        }
-        // 恢复笔记原有颜色
-        this.applyColorToEditor(note.color || 'white');
-    } else {
-      title.textContent = '新建笔记';
-      document.getElementById('noteTitle').value = '';
-      document.getElementById('noteContent').value = '';
-      // 新建笔记时隐藏置顶横幅
-      pinnedBanner.style.display = 'none';
-      // 设置新建笔记的默认颜色为白色
-      this.currentColor = 'white';
-    }
+       if (noteIndex !== null) {
+         title.textContent = '编辑笔记';
+         const note = this.notes[noteIndex];
+         document.getElementById('noteTitle').value = note.title;
+         document.getElementById('noteContent').value = note.content;
+         this.selectedTags = [...note.tags];
+         // 编辑笔记时始终隐藏置顶横幅
+         pinnedBanner.style.display = 'none';
+         // 恢复笔记原有颜色
+         this.applyColorToEditor(note.color || 'white');
+     } else {
+       title.textContent = '新建笔记';
+       document.getElementById('noteTitle').value = '';
+       document.getElementById('noteContent').value = '';
+       // 新建笔记时隐藏置顶横幅
+       pinnedBanner.style.display = 'none';
+       // 设置新建笔记的默认颜色为白色
+       this.currentColor = 'white';
+     }
 
       this.loadAvailableTags();
       this.renderTagsWrapper();
@@ -1152,8 +1191,8 @@ class MemosPlugin {
     // 先将所有 &nbsp; 替换为普通空格
     title = title.replace(/&nbsp;/gi, ' ');
 
-    // 处理各种连字符情况：&nbsp;-&nbsp;、&nbsp;-、-&nbsp;、 -
-    title = title.replace(/\s*-\s*/g, ' - ');
+    // 处理前后带空格的连字符：&nbsp;-&nbsp;、 - 、&nbsp;-、-&nbsp;
+    title = title.replace(/\s+-\s+/g, ' - ');
 
     // 去掉第一个 " - " 及其后面的所有内容
     const dashIndex = title.indexOf(' - ');

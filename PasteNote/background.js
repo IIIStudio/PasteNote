@@ -20,7 +20,8 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       action: 'openModal'
     }, (response) => {
       if (chrome.runtime.lastError) {
-        console.error('发送消息失败:', chrome.runtime.lastError);
+        // 静默处理消息发送失败，不影响功能
+        console.debug('Content script not ready:', chrome.runtime.lastError.message);
       }
     });
   }
