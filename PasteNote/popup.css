@@ -24,11 +24,11 @@ header {
   margin-bottom: 16px;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
 
 h1 {
   font-size: 18px;
@@ -318,27 +318,40 @@ h1 {
   background: #f5f5f5;
 }
 
+.note-item.yellow { background: #fff2cc; }
+.note-item.green { background: #e6f7e6; }
+.note-item.pink { background: #ffe6f2; }
+.note-item.purple { background: #f0e6ff; }
+.note-item.lightblue { background: #e6f3ff; }
+.note-item.lightgray { background: #f5f5f5; }
+.note-item.gray { background: #767676; color: #fff; }
+.note-item.gray .note-preview { color: rgba(255, 255, 255, 0.8); }
+.note-item.gray .note-tag { border-color: rgba(255, 255, 255, 0.5); }
+.note-item.gray .note-time { color: rgba(255, 255, 255, 0.6); }
+
 .note-item.pinned {
   background: #000;
   color: #fff;
   border-color: #000;
 }
 
-.note-item.pinned .note-preview {
-  color: rgba(255, 255, 255, 0.8);
-}
+.note-item.pinned .note-preview { color: rgba(255, 255, 255, 0.8); }
 
-.note-item.pinned .note-tag {
-  border-color: rgba(255, 255, 255, 0.5);
-}
+.note-item.pinned .note-tag { border-color: rgba(255, 255, 255, 0.5); }
 
-.note-item.pinned .note-time {
-  color: rgba(255, 255, 255, 0.6);
-}
+.note-item.pinned .note-time { color: rgba(255, 255, 255, 0.6); }
 
 .note-item.pinned:hover {
   background: #1a1a1a;
 }
+
+.note-item.yellow:hover { background: #ffeb99; }
+.note-item.green:hover { background: #d9f2d9; }
+.note-item.pink:hover { background: #ffd6f0; }
+.note-item.purple:hover { background: #e6d6ff; }
+.note-item.lightblue:hover { background: #d9ecff; }
+.note-item.lightgray:hover { background: #ebebeb; }
+.note-item.gray:hover { background: #5a5a5a; }
 
 .note-title {
   font-weight: 600;
@@ -464,6 +477,30 @@ h1 {
 .note-pin-btn.pinned:hover {
   background: #000;
   color: #fff;
+}
+
+.color-picker-container {
+  display: flex;
+  gap: 2px;
+  margin-right: 2px;
+}
+
+.color-btn.small {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.2s;
+}
+
+.color-btn.small:hover {
+  transform: scale(1.1);
+}
+
+.color-btn.small.active {
+  border: 2px solid #000;
 }
 
 .note-time {

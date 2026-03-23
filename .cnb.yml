@@ -49,6 +49,6 @@ main:
         - name: 上传附件
           image: cnbcool/attachments:latest
           settings:
-            tag: v1.1.0
+            tag: v1.2.0
             attachments:
               - "PasteNote.zip"

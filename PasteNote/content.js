@@ -294,6 +294,76 @@ class PasteNoteModal {
     return div.innerHTML;
   }
 
+  getNoteColorStyle(color) {
+    const colorMap = {
+      'white': {
+        background: '#fff',
+        color: '#000',
+        border: '#000',
+        previewColor: '#666',
+        tagBorder: '#999',
+        timeColor: '#999'
+      },
+      'ffe66e': {
+        background: '#fff2cc',
+        color: '#000',
+        border: '#000',
+        previewColor: '#666',
+        tagBorder: '#999',
+        timeColor: '#999'
+      },
+      'a1ef9b': {
+        background: '#e6f7e6',
+        color: '#000',
+        border: '#000',
+        previewColor: '#666',
+        tagBorder: '#999',
+        timeColor: '#999'
+      },
+      'ffafdf': {
+        background: '#ffe6f2',
+        color: '#000',
+        border: '#000',
+        previewColor: '#666',
+        tagBorder: '#999',
+        timeColor: '#999'
+      },
+      'd7afff': {
+        background: '#f0e6ff',
+        color: '#000',
+        border: '#000',
+        previewColor: '#666',
+        tagBorder: '#999',
+        timeColor: '#999'
+      },
+      '9edfff': {
+        background: '#e6f3ff',
+        color: '#000',
+        border: '#000',
+        previewColor: '#666',
+        tagBorder: '#999',
+        timeColor: '#999'
+      },
+      'e0e0e0': {
+        background: '#f5f5f5',
+        color: '#000',
+        border: '#000',
+        previewColor: '#666',
+        tagBorder: '#999',
+        timeColor: '#999'
+      },
+      '767676': {
+        background: '#767676',
+        color: '#fff',
+        border: '#000',
+        previewColor: 'rgba(255, 255, 255, 0.8)',
+        tagBorder: 'rgba(255, 255, 255, 0.5)',
+        timeColor: 'rgba(255, 255, 255, 0.6)'
+      }
+    };
+    return colorMap[color] || colorMap['white'];
+  }
+
   renderTags() {
     const tagsBox = document.getElementById('pastenote-tags-box');
     if (!tagsBox) return;
@@ -587,75 +657,92 @@ class PasteNoteModal {
              right: 2px;
            ">${createTime}</div>
          `;
-       } else {
-         // 普通笔记：原来的样式
-         noteItem.style.cssText = `
-           border: 1px solid #000;
-           padding: 8px;
-           margin-bottom: 8px;
-           cursor: pointer;
-           position: relative;
-         `;
-         noteItem.innerHTML = `
-           <div style="
-             font-weight: 600;
-             margin-bottom: 4px;
-             padding-right: 40px;
-             overflow: hidden;
-             text-overflow: ellipsis;
-             white-space: nowrap;
-             font-size: 14px;
-           ">
-             ${this.escapeHtml(note.title || '无标题')}
-           </div>
-           <div style="
-             font-size: 12px;
-             color: #666;
-             margin-bottom: 4px;
-             padding-right: 40px;
-             overflow: hidden;
-             text-overflow: ellipsis;
-             white-space: nowrap;
-           ">
-             ${this.escapeHtml(note.content.substring(0, 50))}${note.content.length > 50 ? '...' : ''}
-           </div>
-           ${note.tags && note.tags.length > 0 ? `
-             <div style="
-               display: flex;
-               gap: 4px;
-               flex-wrap: wrap;
-               padding-right: 40px;
-             ">
-               ${note.tags.map(tag => `
-                 <span style="
-                   font-size: 10px;
-                   padding: 1px 4px;
-                   border: 1px solid #999;
-                 ">
-                   ${this.escapeHtml(tag)}
-                 </span>
-               `).join('')}
-             </div>
-           ` : ''}
-           <div style="
-             font-size: 10px;
-             color: #999;
-             position: absolute;
-             bottom: 1px;
-             right: 2px;
-           ">${createTime}</div>
-         `;
-       }
+        } else {
+          // 普通笔记：应用背景颜色
+          const colorStyle = this.getNoteColorStyle(note.color);
+          noteItem.style.cssText = `
+            background: ${colorStyle.background};
+            color: ${colorStyle.color};
+            border: 1px solid ${colorStyle.border};
+            padding: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            position: relative;
+          `;
+          noteItem.innerHTML = `
+            <div style="
+              font-weight: 600;
+              margin-bottom: 4px;
+              padding-right: 40px;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+              font-size: 14px;
+            ">
+              ${this.escapeHtml(note.title || '无标题')}
+            </div>
+            <div style="
+              font-size: 12px;
+              color: ${colorStyle.previewColor};
+              margin-bottom: 4px;
+              padding-right: 40px;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            ">
+              ${this.escapeHtml(note.content.substring(0, 50))}${note.content.length > 50 ? '...' : ''}
+            </div>
+            ${note.tags && note.tags.length > 0 ? `
+              <div style="
+                display: flex;
+                gap: 4px;
+                flex-wrap: wrap;
+                padding-right: 40px;
+              ">
+                ${note.tags.map(tag => `
+                  <span style="
+                    font-size: 10px;
+                    padding: 1px 4px;
+                    border: 1px solid ${colorStyle.tagBorder};
+                    color: ${colorStyle.previewColor};
+                  ">
+                    ${this.escapeHtml(tag)}
+                  </span>
+                `).join('')}
+              </div>
+            ` : ''}
+            <div style="
+              font-size: 10px;
+              color: ${colorStyle.timeColor};
+              position: absolute;
+              bottom: 1px;
+              right: 2px;
+            ">${createTime}</div>
+          `;
+        }
 
-       // 鼠标悬停效果：只有普通笔记会变，置顶笔记保持黑色
-       if (!note.pinned) {
-         noteItem.addEventListener('mouseenter', () => {
-           noteItem.style.background = '#f5f5f5';
-         });
-         noteItem.addEventListener('mouseleave', () => {
-           noteItem.style.background = '#fff';
-         });
-       }
+        // 鼠标悬停效果：只有普通笔记会变，置顶笔记保持黑色
+        // 对于有颜色的笔记，悬停时稍微加深颜色而不是变成白色
+        if (!note.pinned) {
+          const colorStyle = this.getNoteColorStyle(note.color);
+          if (note.color && note.color !== 'white') {
+            // 有颜色的笔记：悬停时稍微加深
+            noteItem.addEventListener('mouseenter', () => {
+              noteItem.style.filter = 'brightness(0.9)';
+            });
+            noteItem.addEventListener('mouseleave', () => {
+              noteItem.style.filter = 'none';
+            });
+          } else {
+            // 白色笔记：原来的悬停效果
+            noteItem.addEventListener('mouseenter', () => {
+              noteItem.style.background = '#f5f5f5';
+            });
+            noteItem.addEventListener('mouseleave', () => {
+              noteItem.style.background = '#fff';
+            });
+          }
+        }
 
       // 点击插入内容到输入框
       noteItem.addEventListener('click', () => {

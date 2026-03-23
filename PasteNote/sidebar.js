@@ -14,17 +14,62 @@ class MemosPlugin {
   }
 
    async init() {
-     await this.loadNotes();
-     await this.getCurrentTabInfo();
-     this.bindEvents();
-     // 在 init 中调用 filterNotes 而不是 renderNotes，确保正确的排序
-     this.filterNotes();
-     this.renderTags();
-     this.renderCalendar();
-     this.updateSyncButtons();
-     this.listenForTabChanges();
-     this.bindScrollEvent();
-   }
+      await this.loadNotes();
+      await this.getCurrentTabInfo();
+      this.bindEvents();
+      // 在 init 中调用 filterNotes 而不是 renderNotes，确保正确的排序
+      this.filterNotes();
+      this.renderTags();
+      this.renderCalendar();
+      this.updateSyncButtons();
+      this.listenForTabChanges();
+      this.bindScrollEvent();
+    }
+
+    async loadNotes() {
+       const result = await chrome.storage.local.get(['memos_notes']);
+       this.notes = result.memos_notes || [];
+       // 为旧数据添加颜色属性
+       this.notes.forEach(note => {
+         if (!note.color) {
+           note.color = 'white';
+         }
+       });
+       // 确保 filteredNotes 正确初始化，保持置顶顺序：先排序再复制
+       const sortedNotes = [...this.notes];
+       sortedNotes.sort((a, b) => {
+         if (a.pinned && !b.pinned) return -1;
+         if (!a.pinned && b.pinned) return 1;
+         return new Date(b.createdAt) - new Date(a.createdAt);
+       });
+       this.filteredNotes = sortedNotes;
+       this.currentPage = 1;
+       this.renderedCount = 0;
+     }
+
+  async saveNotes() {
+    await chrome.storage.local.set({ memos_notes: this.notes });
+    // 如果启用了云同步，自动上传到云端
+    const result = await chrome.storage.local.get(['cos_enabled']);
+    const syncEnabled = result.cos_enabled === true;
+    if (syncEnabled) {
+      this.syncToCloud();
+    }
+  }
+
+    async init() {
+      await this.loadNotes();
+      await this.getCurrentTabInfo();
+      this.bindEvents();
+      this.bindColorPickerEvents();
+      // 在 init 中调用 filterNotes 而不是 renderNotes，确保正确的排序
+      this.filterNotes();
+      this.renderTags();
+      this.renderCalendar();
+      this.updateSyncButtons();
+      this.listenForTabChanges();
+      this.bindScrollEvent();
+    }
 
   async getCurrentTabInfo() {
     try {
@@ -52,19 +97,26 @@ class MemosPlugin {
   }
 
    async loadNotes() {
-      const result = await chrome.storage.local.get(['memos_notes']);
-      this.notes = result.memos_notes || [];
-      // 确保 filteredNotes 正确初始化，保持置顶顺序：先排序再复制
-      const sortedNotes = [...this.notes];
-      sortedNotes.sort((a, b) => {
-        if (a.pinned && !b.pinned) return -1;
-        if (!a.pinned && b.pinned) return 1;
-        return new Date(b.createdAt) - new Date(a.createdAt);
-      });
-      this.filteredNotes = sortedNotes;
-      this.currentPage = 1;
-      this.renderedCount = 0;
-    }
+       const result = await chrome.storage.local.get(['memos_notes', 'memos_color']);
+       this.notes = result.memos_notes || [];
+       this.currentColor = result.memos_color || 'white';
+       // 为旧数据添加颜色属性
+       this.notes.forEach(note => {
+         if (!note.color) {
+           note.color = 'white';
+         }
+       });
+       // 确保 filteredNotes 正确初始化，保持置顶顺序：先排序再复制
+       const sortedNotes = [...this.notes];
+       sortedNotes.sort((a, b) => {
+         if (a.pinned && !b.pinned) return -1;
+         if (!a.pinned && b.pinned) return 1;
+         return new Date(b.createdAt) - new Date(a.createdAt);
+       });
+       this.filteredNotes = sortedNotes;
+       this.currentPage = 1;
+       this.renderedCount = 0;
+     }
 
   async saveNotes() {
     await chrome.storage.local.set({ memos_notes: this.notes });
@@ -73,6 +125,153 @@ class MemosPlugin {
     const syncEnabled = result.cos_enabled === true;
     if (syncEnabled) {
       this.syncToCloud();
+    }
+  }
+
+  changeNoteColor(noteId, color) {
+    const noteIndex = this.notes.findIndex(note => note.id == noteId);
+    if (noteIndex !== -1) {
+      this.notes[noteIndex].color = color;
+      this.saveNotes();
+      this.filterNotes();
+      this.showToast('笔记颜色已更新');
+    }
+  }
+
+  showColorPicker(noteId, event) {
+    event.stopPropagation();
+    
+    // 移除现有的颜色选择器
+    const existingPicker = document.querySelector('.note-color-picker-popup');
+    if (existingPicker) {
+      existingPicker.remove();
+      return;
+    }
+    
+    // 创建颜色选择器弹窗
+    const picker = document.createElement('div');
+    picker.className = 'note-color-picker-popup';
+    picker.style.cssText = `
+      position: absolute;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 8px;
+      z-index: 10000;
+      display: flex;
+      gap: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    `;
+    
+    const colors = [
+      { name: 'white', value: 'white', style: 'background: white; border: 1px solid #ccc;' },
+      { name: 'yellow', value: 'ffe66e', style: 'background: #ffe66e;' },
+      { name: 'green', value: 'a1ef9b', style: 'background: #a1ef9b;' },
+      { name: 'pink', value: 'ffafdf', style: 'background: #ffafdf;' },
+      { name: 'purple', value: 'd7afff', style: 'background: #d7afff;' },
+      { name: 'lightblue', value: '9edfff', style: 'background: #9edfff;' },
+      { name: 'lightgray', value: 'e0e0e0', style: 'background: #e0e0e0;' },
+      { name: 'gray', value: '767676', style: 'background: #767676;' }
+    ];
+    
+    colors.forEach(color => {
+      const btn = document.createElement('button');
+      btn.style.cssText = `
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        ${color.style}
+      `;
+      btn.title = color.name;
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.changeNoteColor(noteId, color.value);
+        picker.remove();
+      });
+      picker.appendChild(btn);
+    });
+    
+    // 定位颜色选择器
+    const rect = event.target.getBoundingClientRect();
+    picker.style.left = rect.left + 'px';
+    picker.style.top = (rect.bottom + 5) + 'px';
+    
+    document.body.appendChild(picker);
+    
+    // 点击其他地方关闭颜色选择器
+    setTimeout(() => {
+      document.addEventListener('click', function closePicker() {
+        picker.remove();
+        document.removeEventListener('click', closePicker);
+      });
+    }, 0);
+  }
+
+  async saveColor() {
+    await chrome.storage.local.set({ memos_color: this.currentColor });
+  }
+
+  bindColorPickerEvents() {
+    document.querySelectorAll('.color-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const color = btn.dataset.color;
+        this.setColor(color);
+      });
+    });
+  }
+
+  setColor(color) {
+    this.currentColor = color;
+    
+    // 更新按钮状态
+    document.querySelectorAll('.color-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.color === color);
+    });
+    
+    // 保存到浏览器存储
+    this.saveColor();
+    
+    // 应用颜色到新建笔记
+    this.applyColorToEditor();
+    
+    this.showToast(`颜色已切换为 ${color === 'white' ? '默认' : '#' + color}`);
+  }
+
+  getColorClassName(color) {
+    const colorMap = {
+      'ffe66e': 'yellow',
+      'a1ef9b': 'green',
+      'ffafdf': 'pink',
+      'd7afff': 'purple',
+      '9edfff': 'lightblue',
+      'e0e0e0': 'lightgray',
+      '767676': 'gray'
+    };
+    return colorMap[color] || '';
+  }
+
+  applyColorToEditor(color = this.currentColor) {
+    const modal = document.getElementById('noteModal');
+    if (modal.style.display === 'block') {
+      const titleInput = document.getElementById('noteTitle');
+      const contentTextarea = document.getElementById('noteContent');
+      
+      if (color === '767676') {
+        // 灰色背景，字体改为白色
+        titleInput.style.backgroundColor = '#767676';
+        titleInput.style.color = '#ffffff';
+        contentTextarea.style.backgroundColor = '#767676';
+        contentTextarea.style.color = '#ffffff';
+      } else {
+        // 其他颜色，恢复默认样式
+        titleInput.style.backgroundColor = '';
+        titleInput.style.color = '';
+        contentTextarea.style.backgroundColor = '';
+        contentTextarea.style.color = '';
+      }
     }
   }
 
@@ -252,7 +451,13 @@ class MemosPlugin {
     for (let i = startIndex; i < endIndex; i++) {
       const note = this.filteredNotes[i];
       const div = document.createElement('div');
-      div.className = 'note-item' + (note.pinned ? ' pinned' : '');
+      let className = 'note-item';
+      if (note.pinned) {
+        className += ' pinned';
+      } else if (note.color && note.color !== 'white') {
+        className += ' ' + this.getColorClassName(note.color);
+      }
+      div.className = className;
 
       let titleHtml = '';
       if (note.title && note.title.trim()) {
@@ -269,6 +474,16 @@ class MemosPlugin {
         </div>
         <div class="note-time">${createTime}</div>
         <div class="note-actions">
+          <div class="color-picker-container" data-note-id="${note.id}">
+            <button class="color-btn small ${note.color === 'white' ? 'active' : ''}" data-color="white" style="background: white; border: 1px solid #ccc;"></button>
+            <button class="color-btn small" data-color="ffe66e" style="background: #ffe66e;"></button>
+            <button class="color-btn small" data-color="a1ef9b" style="background: #a1ef9b;"></button>
+            <button class="color-btn small" data-color="ffafdf" style="background: #ffafdf;"></button>
+            <button class="color-btn small" data-color="d7afff" style="background: #d7afff;"></button>
+            <button class="color-btn small" data-color="9edfff" style="background: #9edfff;"></button>
+            <button class="color-btn small" data-color="e0e0e0" style="background: #e0e0e0;"></button>
+            <button class="color-btn small" data-color="767676" style="background: #767676;"></button>
+          </div>
           <button class="note-pin-btn ${note.pinned ? 'pinned' : ''}" data-note-id="${note.id}" title="置顶">📌</button>
           <button class="note-edit-btn" data-note-id="${note.id}" title="编辑">✎</button>
           <button class="note-delete-btn" data-note-id="${note.id}" title="删除">×</button>
@@ -290,6 +505,22 @@ class MemosPlugin {
           // 否则复制笔记内容
           navigator.clipboard.writeText(note.content).then(() => {
             this.showToast('已复制笔记内容');
+          });
+        }
+      });
+
+      // 颜色按钮点击事件
+      const colorPicker = div.querySelector('.color-picker-container');
+      colorPicker.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const colorBtn = e.target.closest('.color-btn.small');
+        if (colorBtn) {
+          const color = colorBtn.dataset.color;
+          this.changeNoteColor(note.id, color);
+          
+          // 更新按钮激活状态
+          colorPicker.querySelectorAll('.color-btn.small').forEach(btn => {
+            btn.classList.toggle('active', btn === colorBtn);
           });
         }
       });
@@ -537,31 +768,37 @@ class MemosPlugin {
     }
   }
 
-  showNoteModal(noteIndex = null) {
-    this.editingIndex = noteIndex;
-    this.selectedTags = [];
-    this.availableTags = []; // 存储可用标签
-    const modal = document.getElementById('noteModal');
-    const title = document.getElementById('modalTitle');
+   showNoteModal(noteIndex = null) {
+      this.editingIndex = noteIndex;
+      this.selectedTags = [];
+      this.availableTags = []; // 存储可用标签
+      const modal = document.getElementById('noteModal');
+      const title = document.getElementById('modalTitle');
 
-    if (noteIndex !== null) {
-      title.textContent = '编辑笔记';
-      const note = this.notes[noteIndex];
-      document.getElementById('noteTitle').value = note.title;
-      document.getElementById('noteContent').value = note.content;
-      this.selectedTags = [...note.tags];
+      if (noteIndex !== null) {
+        title.textContent = '编辑笔记';
+        const note = this.notes[noteIndex];
+        document.getElementById('noteTitle').value = note.title;
+        document.getElementById('noteContent').value = note.content;
+        this.selectedTags = [...note.tags];
+        // 恢复笔记原有颜色
+        this.applyColorToEditor(note.color || 'white');
     } else {
       title.textContent = '新建笔记';
       document.getElementById('noteTitle').value = '';
       document.getElementById('noteContent').value = '';
+      // 新建笔记时隐藏置顶横幅
+      pinnedBanner.style.display = 'none';
+      // 设置新建笔记的默认颜色为白色
+      this.currentColor = 'white';
     }
 
-    this.loadAvailableTags();
-    this.renderTagsWrapper();
-    this.bindTagInputEvents();
+      this.loadAvailableTags();
+      this.renderTagsWrapper();
+      this.bindTagInputEvents();
 
-    modal.style.display = 'block';
-  }
+      modal.style.display = 'block';
+    }
 
   hideNoteModal() {
     document.getElementById('noteModal').style.display = 'none';
@@ -738,40 +975,41 @@ class MemosPlugin {
     }
   }
 
-  saveNote() {
-    const title = document.getElementById('noteTitle').value.trim();
-    const content = document.getElementById('noteContent').value.trim();
-    const tags = [...this.selectedTags];
+   saveNote() {
+      const title = document.getElementById('noteTitle').value.trim();
+      const content = document.getElementById('noteContent').value.trim();
+      const tags = [...this.selectedTags];
 
-    if (this.editingIndex !== null) {
-      // 编辑现有笔记，保留原有的 createdAt
-      const existingNote = this.notes[this.editingIndex];
-      this.notes[this.editingIndex] = {
-        ...existingNote,
-        title,
-        content,
-        tags,
-        updatedAt: new Date().toISOString()
-      };
-    } else {
-      // 新建笔记
-      const note = {
-        id: Date.now(),
-        title,
-        content,
-        tags,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      this.notes.unshift(note);
+      if (this.editingIndex !== null) {
+        // 编辑现有笔记，保留原有的 createdAt
+        const existingNote = this.notes[this.editingIndex];
+        this.notes[this.editingIndex] = {
+          ...existingNote,
+          title,
+          content,
+          tags,
+          updatedAt: new Date().toISOString()
+        };
+      } else {
+        // 新建笔记
+        const note = {
+          id: Date.now(),
+          title,
+          content,
+          tags,
+          color: this.currentColor,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        this.notes.unshift(note);
+      }
+
+      this.saveNotes();
+      this.filterNotes();
+      this.renderTags();
+      this.renderCalendar();
+      this.hideNoteModal();
     }
-
-    this.saveNotes();
-    this.filterNotes();
-    this.renderTags();
-    this.renderCalendar();
-    this.hideNoteModal();
-  }
 
   editNote(index) {
     const actualIndex = this.notes.findIndex(note => note.id === this.filteredNotes[index].id);

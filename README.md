@@ -6,6 +6,8 @@ PasteNote 是一个用于在浏览器中快速添加笔记的插件。
 
 下载地址：https://cnb.cool/IIIStudio/Code/Greasemonkey/PasteNote/-/releases/download/v1.1.0/PasteNote.zip
 
+下载地址：https://cnb.cool/IIIStudio/Code/Greasemonkey/PasteNote/-/releases/download/v1.2.0/PasteNote.zip
+
 点击添加类似书签功能，获取当前页面链接与title，并添加URL标签，**带有URL的标签点击会跳转到笔记里的链接页面**
 
 其他点击会复制。
