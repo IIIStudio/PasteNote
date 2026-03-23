@@ -90,25 +90,28 @@
     </div>
   </div>
 
-  <!-- Modal for note editor -->
-  <div id="noteModal" class="modal">
-    <div class="modal-content">
-      <span class="close">&times;</span>
-      <h2 id="modalTitle">新建笔记</h2>
-      <input type="text" id="noteTitle" placeholder="标题">
-      <textarea id="noteContent" placeholder="内容..."></textarea>
-      <div class="tag-input-section">
-        <div class="tags-wrapper" id="tagsWrapper">
-          <button id="addTagBtn" class="btn btn-small add-tag-btn">添加标签</button>
-        </div>
-      </div>
-    <div class="modal-actions">
-      <button id="deleteNoteBtn" class="btn">删除</button>
-      <button id="saveNoteBtn" class="btn btn-primary">保存</button>
-      <button id="cancelBtn" class="btn">取消</button>
-    </div>
-    </div>
-  </div>
+   <!-- Modal for note editor -->
+   <div id="noteModal" class="modal">
+     <div class="modal-content">
+       <span class="close">&times;</span>
+       <h2 id="modalTitle">新建笔记</h2>
+       <div id="pinnedBanner" class="pinned-banner" style="display: none;">
+         <span>📌 置顶笔记</span>
+       </div>
+       <input type="text" id="noteTitle" placeholder="标题">
+       <textarea id="noteContent" placeholder="内容..."></textarea>
+       <div class="tag-input-section">
+         <div class="tags-wrapper" id="tagsWrapper">
+           <button id="addTagBtn" class="btn btn-small add-tag-btn">添加标签</button>
+         </div>
+       </div>
+       <div class="modal-actions">
+         <button id="deleteNoteBtn" class="btn">删除</button>
+         <button id="saveNoteBtn" class="btn btn-primary">保存</button>
+         <button id="cancelBtn" class="btn">取消</button>
+       </div>
+     </div>
+   </div>
 
   <!-- 添加标签弹窗 -->
   <div id="tagModal" class="modal">

@@ -58,6 +58,12 @@ class PasteNoteModal {
     // 加载笔记
     const result = await chrome.storage.local.get(['memos_notes']);
     this.notes = result.memos_notes || [];
+    // 关键：对原始数据进行排序，确保后续所有操作都基于有序数据
+    this.notes.sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
     this.filteredNotes = [...this.notes];
     this.currentPage = 1;
     this.renderedCount = 0;
@@ -328,14 +334,14 @@ class PasteNoteModal {
       color: ${!this.selectedTag ? '#fff' : '#000'};
     `;
       allTag.textContent = '全部';
-    allTag.addEventListener('click', () => {
-      this.selectedTag = null;
-      this.currentPage = 1;
-      this.renderedCount = 0;
-      this.filteredNotes = [...this.notes];
-      this.renderTags();
-      this.renderNotes();
-    });
+       allTag.addEventListener('click', () => {
+         this.selectedTag = null;
+         this.currentPage = 1;
+         this.renderedCount = 0;
+         this.filteredNotes = [...this.notes];
+         this.renderTags();
+         this.renderNotes();
+       });
     tagsBox.appendChild(allTag);
 
     // 添加其他标签
@@ -352,20 +358,20 @@ class PasteNoteModal {
         color: ${this.selectedTag === tag ? '#fff' : '#000'};
       `;
       tagElement.textContent = tag;
-      tagElement.addEventListener('click', () => {
-        this.selectedTag = this.selectedTag === tag ? null : tag;
-        this.currentPage = 1;
-        this.renderedCount = 0;
-        // 根据选中的标签过滤
-        this.filteredNotes = [...this.notes];
-        if (this.selectedTag) {
-          this.filteredNotes = this.filteredNotes.filter(note =>
-            note.tags && note.tags.includes(this.selectedTag)
-          );
-        }
-        this.renderTags();
-        this.renderNotes();
-      });
+        tagElement.addEventListener('click', () => {
+          this.selectedTag = this.selectedTag === tag ? null : tag;
+          this.currentPage = 1;
+          this.renderedCount = 0;
+          // 根据选中的标签过滤（this.notes已经是排序好的）
+          this.filteredNotes = [...this.notes];
+          if (this.selectedTag) {
+            this.filteredNotes = this.filteredNotes.filter(note =>
+              note.tags && note.tags.includes(this.selectedTag)
+            );
+          }
+          this.renderTags();
+          this.renderNotes();
+        });
       tagsBox.appendChild(tagElement);
     });
   }
@@ -514,75 +520,142 @@ class PasteNoteModal {
     // 渲染当前页的笔记
     for (let i = startIndex; i < endIndex; i++) {
       const note = this.filteredNotes[i];
-      const noteItem = document.createElement('div');
-      noteItem.className = 'pastenote-note-item';
-      noteItem.style.cssText = `
-        border: 1px solid #000;
-        padding: 8px;
-        margin-bottom: 8px;
-        cursor: pointer;
-        position: relative;
-      `;
+       const noteItem = document.createElement('div');
+       noteItem.className = 'pastenote-note-item';
+       
+       // 创建时间
+       const createTime = new Date(note.createdAt).toLocaleString('zh-CN');
 
-      // 创建时间
-      const createTime = new Date(note.createdAt).toLocaleString('zh-CN');
+       if (note.pinned) {
+         // 置顶笔记：黑底白字，与侧边栏一致
+         noteItem.style.cssText = `
+           background: #000;
+           color: #fff;
+           border: 1px solid #000;
+           padding: 8px;
+           margin-bottom: 8px;
+           cursor: pointer;
+           position: relative;
+         `;
+         noteItem.innerHTML = `
+           <div style="
+             font-weight: 600;
+             margin-bottom: 4px;
+             padding-right: 40px;
+             overflow: hidden;
+             text-overflow: ellipsis;
+             white-space: nowrap;
+             font-size: 14px;
+           ">
+             ${this.escapeHtml(note.title || '无标题')}
+           </div>
+           <div style="
+             font-size: 12px;
+             color: rgba(255, 255, 255, 0.8);
+             margin-bottom: 4px;
+             padding-right: 40px;
+             overflow: hidden;
+             text-overflow: ellipsis;
+             white-space: nowrap;
+           ">
+             ${this.escapeHtml(note.content.substring(0, 50))}${note.content.length > 50 ? '...' : ''}
+           </div>
+           ${note.tags && note.tags.length > 0 ? `
+             <div style="
+               display: flex;
+               gap: 4px;
+               flex-wrap: wrap;
+               padding-right: 40px;
+             ">
+               ${note.tags.map(tag => `
+                 <span style="
+                   font-size: 10px;
+                   padding: 1px 4px;
+                   border: 1px solid rgba(255, 255, 255, 0.5);
+                   color: #fff;
+                 ">
+                   ${this.escapeHtml(tag)}
+                 </span>
+               `).join('')}
+             </div>
+           ` : ''}
+           <div style="
+             font-size: 10px;
+             color: rgba(255, 255, 255, 0.6);
+             position: absolute;
+             bottom: 1px;
+             right: 2px;
+           ">${createTime}</div>
+         `;
+       } else {
+         // 普通笔记：原来的样式
+         noteItem.style.cssText = `
+           border: 1px solid #000;
+           padding: 8px;
+           margin-bottom: 8px;
+           cursor: pointer;
+           position: relative;
+         `;
+         noteItem.innerHTML = `
+           <div style="
+             font-weight: 600;
+             margin-bottom: 4px;
+             padding-right: 40px;
+             overflow: hidden;
+             text-overflow: ellipsis;
+             white-space: nowrap;
+             font-size: 14px;
+           ">
+             ${this.escapeHtml(note.title || '无标题')}
+           </div>
+           <div style="
+             font-size: 12px;
+             color: #666;
+             margin-bottom: 4px;
+             padding-right: 40px;
+             overflow: hidden;
+             text-overflow: ellipsis;
+             white-space: nowrap;
+           ">
+             ${this.escapeHtml(note.content.substring(0, 50))}${note.content.length > 50 ? '...' : ''}
+           </div>
+           ${note.tags && note.tags.length > 0 ? `
+             <div style="
+               display: flex;
+               gap: 4px;
+               flex-wrap: wrap;
+               padding-right: 40px;
+             ">
+               ${note.tags.map(tag => `
+                 <span style="
+                   font-size: 10px;
+                   padding: 1px 4px;
+                   border: 1px solid #999;
+                 ">
+                   ${this.escapeHtml(tag)}
+                 </span>
+               `).join('')}
+             </div>
+           ` : ''}
+           <div style="
+             font-size: 10px;
+             color: #999;
+             position: absolute;
+             bottom: 1px;
+             right: 2px;
+           ">${createTime}</div>
+         `;
+       }
 
-      noteItem.innerHTML = `
-        <div style="
-          font-weight: 600;
-          margin-bottom: 4px;
-          padding-right: 40px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        ">
-          ${this.escapeHtml(note.title || '无标题')}
-        </div>
-        <div style="
-          font-size: 12px;
-          color: #666;
-          margin-bottom: 4px;
-          padding-right: 40px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        ">
-          ${this.escapeHtml(note.content.substring(0, 50))}${note.content.length > 50 ? '...' : ''}
-        </div>
-        ${note.tags && note.tags.length > 0 ? `
-          <div style="
-            display: flex;
-            gap: 4px;
-            flex-wrap: wrap;
-            padding-right: 40px;
-          ">
-            ${note.tags.map(tag => `
-              <span style="
-                font-size: 10px;
-                padding: 1px 4px;
-                border: 1px solid #999;
-              ">
-                ${this.escapeHtml(tag)}
-              </span>
-            `).join('')}
-          </div>
-        ` : ''}
-        <div style="
-          font-size: 10px;
-          color: #999;
-          position: absolute;
-          bottom: 1px;
-          right: 2px;
-        ">${createTime}</div>
-      `;
-
-      // 鼠标悬停效果
-      noteItem.addEventListener('mouseenter', () => {
-        noteItem.style.background = '#f5f5f5';
-      });
-      noteItem.addEventListener('mouseleave', () => {
-        noteItem.style.background = '#fff';
-      });
+       // 鼠标悬停效果：只有普通笔记会变，置顶笔记保持黑色
+       if (!note.pinned) {
+         noteItem.addEventListener('mouseenter', () => {
+           noteItem.style.background = '#f5f5f5';
+         });
+         noteItem.addEventListener('mouseleave', () => {
+           noteItem.style.background = '#fff';
+         });
+       }
 
       // 点击插入内容到输入框
       noteItem.addEventListener('click', () => {
@@ -598,44 +671,52 @@ class PasteNoteModal {
   }
 
   filterNotes(keyword) {
-    const content = document.getElementById('pastenote-notes-content');
-    if (!content) return;
+      const content = document.getElementById('pastenote-notes-content');
+      if (!content) return;
 
-    // 根据选中的标签过滤
-    this.filteredNotes = this.notes;
-    if (this.selectedTag) {
+      // 根据选中的标签过滤，并保持排序
+      this.filteredNotes = [...this.notes];
+      if (this.selectedTag) {
+        this.filteredNotes = this.filteredNotes.filter(note =>
+          note.tags && note.tags.includes(this.selectedTag)
+        );
+      }
+
+      // 再根据关键词过滤
       this.filteredNotes = this.filteredNotes.filter(note =>
-        note.tags && note.tags.includes(this.selectedTag)
+        (note.title || '').toLowerCase().includes(keyword.toLowerCase()) ||
+        (note.content || '').toLowerCase().includes(keyword.toLowerCase()) ||
+        (note.tags && note.tags.some(tag => tag.toLowerCase().includes(keyword.toLowerCase())))
       );
+
+      // 置顶笔记排在前面，非置顶的按创建时间倒序排列（与popup/sidebar保持一致）
+      this.filteredNotes.sort((a, b) => {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        // 都是置顶或都不是置顶时，按创建时间倒序（新的在前）
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
+
+      this.currentPage = 1;
+      this.renderedCount = 0;
+
+      if (this.filteredNotes.length === 0) {
+        content.innerHTML = '';
+        content.innerHTML = `
+          <div style="
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+          ">
+            <div style="font-size: 36px; margin-bottom: 12px;">🔍</div>
+            <div>没有找到匹配的笔记</div>
+          </div>
+        `;
+        return;
+      }
+
+      this.renderNotes();
     }
-
-    // 再根据关键词过滤
-    this.filteredNotes = this.filteredNotes.filter(note =>
-      (note.title || '').toLowerCase().includes(keyword.toLowerCase()) ||
-      (note.content || '').toLowerCase().includes(keyword.toLowerCase()) ||
-      (note.tags && note.tags.some(tag => tag.toLowerCase().includes(keyword.toLowerCase())))
-    );
-
-    this.currentPage = 1;
-    this.renderedCount = 0;
-
-    if (this.filteredNotes.length === 0) {
-      content.innerHTML = '';
-      content.innerHTML = `
-        <div style="
-          text-align: center;
-          padding: 40px 20px;
-          color: #999;
-        ">
-          <div style="font-size: 36px; margin-bottom: 12px;">🔍</div>
-          <div>没有找到匹配的笔记</div>
-        </div>
-      `;
-      return;
-    }
-
-    this.renderNotes();
-  }
 
   handleKeyboard(event) {
     if (!this.modal || this.modal.style.display === 'none') {
@@ -672,20 +753,10 @@ class PasteNoteModal {
       }
       loadingIndicator.style.display = 'none';
     } else {
-      if (!loadingIndicator) {
-        loadingIndicator = document.createElement('div');
-        loadingIndicator.id = 'pastenote-loading';
-        loadingIndicator.style.cssText = `
-          text-align: center;
-          padding: 20px;
-          color: #999;
-          font-size: 14px;
-        `;
-        loadingIndicator.textContent = '已加载全部笔记';
-        content.appendChild(loadingIndicator);
+      // 不显示"已加载全部笔记"，直接隐藏加载提示
+      if (loadingIndicator) {
+        loadingIndicator.style.display = 'none';
       }
-      loadingIndicator.textContent = '已加载全部笔记';
-      loadingIndicator.style.display = 'block';
     }
   }
 

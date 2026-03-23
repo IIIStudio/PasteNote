@@ -408,6 +408,12 @@ h1 {
   transform: scale(1.1);
 }
 
+.note-delete-btn:hover {
+  background: #000;
+  color: #fff;
+  transform: scale(1.1);
+}
+
 .note-delete-btn {
   width: 24px;
   height: 24px;
@@ -456,8 +462,8 @@ h1 {
 }
 
 .note-pin-btn.pinned:hover {
-  background: #fff;
-  color: #000;
+  background: #000;
+  color: #fff;
 }
 
 .note-time {
@@ -476,7 +482,7 @@ h1 {
   width: 100%;
   height: 100%;
   background: rgba(0,0,0,0.5);
-  z-index: 1500;
+  z-index: 10001;
 }
 
 .modal-content {
@@ -615,6 +621,17 @@ h1 {
   border: 1px solid #000;
   resize: vertical;
   margin-bottom: 12px;
+}
+
+.pinned-banner {
+  background: #000;
+  color: #fff;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .modal-actions {

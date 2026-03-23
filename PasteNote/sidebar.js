@@ -13,17 +13,18 @@ class MemosPlugin {
     this.init();
   }
 
-  async init() {
-    await this.loadNotes();
-    await this.getCurrentTabInfo();
-    this.bindEvents();
-    this.renderNotes();
-    this.renderTags();
-    this.renderCalendar();
-    this.updateSyncButtons();
-    this.listenForTabChanges();
-    this.bindScrollEvent();
-  }
+   async init() {
+     await this.loadNotes();
+     await this.getCurrentTabInfo();
+     this.bindEvents();
+     // 在 init 中调用 filterNotes 而不是 renderNotes，确保正确的排序
+     this.filterNotes();
+     this.renderTags();
+     this.renderCalendar();
+     this.updateSyncButtons();
+     this.listenForTabChanges();
+     this.bindScrollEvent();
+   }
 
   async getCurrentTabInfo() {
     try {
@@ -50,13 +51,20 @@ class MemosPlugin {
     });
   }
 
-  async loadNotes() {
-    const result = await chrome.storage.local.get(['memos_notes']);
-    this.notes = result.memos_notes || [];
-    this.filteredNotes = [...this.notes];
-    this.currentPage = 1;
-    this.renderedCount = 0;
-  }
+   async loadNotes() {
+      const result = await chrome.storage.local.get(['memos_notes']);
+      this.notes = result.memos_notes || [];
+      // 确保 filteredNotes 正确初始化，保持置顶顺序：先排序再复制
+      const sortedNotes = [...this.notes];
+      sortedNotes.sort((a, b) => {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
+      this.filteredNotes = sortedNotes;
+      this.currentPage = 1;
+      this.renderedCount = 0;
+    }
 
   async saveNotes() {
     await chrome.storage.local.set({ memos_notes: this.notes });
@@ -206,15 +214,16 @@ class MemosPlugin {
       }
 
       return matchesSearch && matchesTags;
-    });
-    // 置顶笔记排在前面
-    this.filteredNotes.sort((a, b) => {
-      if (a.pinned && !b.pinned) return -1;
-      if (!a.pinned && b.pinned) return 1;
-      return 0;
-    });
-    this.currentPage = 1;
-    this.renderNotes();
+     });
+     // 置顶笔记排在前面，非置顶的按创建时间倒序排列
+     this.filteredNotes.sort((a, b) => {
+       if (a.pinned && !b.pinned) return -1;
+       if (!a.pinned && b.pinned) return 1;
+       // 都是置顶或都不是置顶时，按创建时间倒序（新的在前）
+       return new Date(b.createdAt) - new Date(a.createdAt);
+     });
+     this.currentPage = 1;
+     this.renderNotes();
   }
 
   renderNotes() {
@@ -230,15 +239,14 @@ class MemosPlugin {
     const startIndex = (this.currentPage - 1) * this.pageSize;
     const endIndex = Math.min(startIndex + this.pageSize, this.filteredNotes.length);
 
-    // 如果没有更多笔记，移除加载提示
-    if (startIndex >= this.filteredNotes.length) {
-      const loadMoreBtn = document.getElementById('loadMoreBtn');
-      if (loadMoreBtn) {
-        loadMoreBtn.textContent = '已加载全部笔记';
-        loadMoreBtn.disabled = true;
+      // 如果没有更多笔记，移除加载提示
+      if (startIndex >= this.filteredNotes.length) {
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        if (loadMoreBtn) {
+          loadMoreBtn.style.display = 'none';
+        }
+        return;
       }
-      return;
-    }
 
     // 渲染当前页的笔记
     for (let i = startIndex; i < endIndex; i++) {
@@ -1093,21 +1101,10 @@ class MemosPlugin {
       // 有更多笔记时，不显示任何提示，等待滚动触发
       loadingIndicator.style.display = 'none';
     } else {
-      // 没有更多笔记，显示已加载全部
-      if (!loadingIndicator) {
-        loadingIndicator = document.createElement('div');
-        loadingIndicator.id = 'loadingIndicator';
-        loadingIndicator.className = 'loading-indicator';
-        loadingIndicator.style.cssText = `
-          text-align: center;
-          padding: 20px;
-          color: #999;
-          font-size: 14px;
-        `;
-        document.getElementById('notesList').appendChild(loadingIndicator);
+      // 没有更多笔记，不显示提示
+      if (loadingIndicator) {
+        loadingIndicator.style.display = 'none';
       }
-      loadingIndicator.textContent = '已加载全部笔记';
-      loadingIndicator.style.display = 'block';
     }
   }
 
