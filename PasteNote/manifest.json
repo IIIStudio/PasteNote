@@ -11,8 +11,10 @@
     "contextMenus"
   ],
   "host_permissions": [
-    "https://*.tencentcloudapi.com/*",
-    "https://*.cos.*.myqcloud.com/*"
+    "https://cos.ap-beijing.myqcloud.com/*",
+    "https://cos.ap-shanghai.myqcloud.com/*",
+    "https://cos.ap-guangzhou.myqcloud.com/*",
+    "https://cos.ap-chengdu.myqcloud.com/*"
   ],
   "action": {
     "default_popup": "popup.html",
