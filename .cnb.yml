@@ -53,6 +53,7 @@ main:
           type: git:release
           options:
             overlying: true
+            latest: true
             tag: ${FILE_NAME}
         - name: 压缩文件
           timeout: 7200s
