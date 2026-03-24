@@ -43,12 +43,23 @@ main:
     - services:
         - docker
       stages:
+        - name: 获取版本号
+          script: |
+            VERSION=$(grep '"version"' PasteNote/manifest.json | cut -d'"' -f4)
+            echo "v$VERSION"
+          exports:
+            info: FILE_NAME
+        - name: 创建新标签
+          type: git:release
+          options:
+            overlying: true
+            tag: ${FILE_NAME}
         - name: 压缩文件
           timeout: 7200s
           script: apt-get update && apt-get install -y zip && cd /workspace/PasteNote && zip -r ../PasteNote.zip *
         - name: 上传附件
           image: cnbcool/attachments:latest
           settings:
-            tag: v1.2.0
+            tag: ${FILE_NAME}
             attachments:
               - "PasteNote.zip"
