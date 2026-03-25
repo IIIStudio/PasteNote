@@ -774,6 +774,7 @@ class MemosPlugin {
       this.availableTags = []; // 存储可用标签
       const modal = document.getElementById('noteModal');
       const title = document.getElementById('modalTitle');
+      const pinnedBanner = document.getElementById('pinnedBanner');
 
       if (noteIndex !== null) {
         title.textContent = '编辑笔记';
@@ -783,12 +784,18 @@ class MemosPlugin {
         this.selectedTags = [...note.tags];
         // 恢复笔记原有颜色
         this.applyColorToEditor(note.color || 'white');
+        // 编辑笔记时显示或隐藏置顶横幅
+        if (pinnedBanner) {
+          pinnedBanner.style.display = note.pinned ? 'block' : 'none';
+        }
     } else {
       title.textContent = '新建笔记';
       document.getElementById('noteTitle').value = '';
       document.getElementById('noteContent').value = '';
       // 新建笔记时隐藏置顶横幅
-      pinnedBanner.style.display = 'none';
+      if (pinnedBanner) {
+        pinnedBanner.style.display = 'none';
+      }
       // 设置新建笔记的默认颜色为白色
       this.currentColor = 'white';
     }
