@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PasteNote",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "自托管笔记和知识管理浏览器插件",
   "permissions": [
     "storage",
@@ -17,8 +17,11 @@
     "https://cos.ap-chengdu.myqcloud.com/*"
   ],
   "action": {
-    "default_popup": "popup.html",
-    "default_title": "PasteNote"
+    "default_title": "PasteNote",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    }
   },
   "side_panel": {
     "default_path": "sidebar.html"
@@ -36,5 +39,13 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
+  },
+  "commands": {
+    "toggle-sidepanel": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y"
+      },
+      "description": "Toggle PasteNote side panel"
+    }
   }
 }

@@ -10,6 +10,43 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
+// 处理图标点击打开/关闭侧边栏
+const sidePanelStates = {};
+
+chrome.action.onClicked.addListener(async (tab) => {
+  console.log('Extension icon clicked, toggling side panel');
+  try {
+    const tabId = tab.id;
+    
+    // 检查当前标签页的侧边栏是否已打开
+    const isOpen = sidePanelStates[tabId] === true;
+    
+    if (isOpen) {
+      // 如果已打开，则关闭侧边栏
+      await chrome.sidePanel.close({ tabId: tabId });
+      sidePanelStates[tabId] = false;
+      console.log('Side panel closed');
+    } else {
+      // 如果未打开，则打开侧边栏
+      await chrome.sidePanel.open({ tabId: tabId });
+      await chrome.sidePanel.setOptions({
+        tabId: tabId,
+        path: 'sidebar.html'
+      });
+      sidePanelStates[tabId] = true;
+      console.log('Side panel opened');
+    }
+  } catch (error) {
+    console.error('Failed to toggle side panel:', error);
+  }
+});
+
+// 监听侧边栏关闭事件，清理状态
+chrome.sidePanel.onClosed.addListener(({ tabId }) => {
+  sidePanelStates[tabId] = false;
+  console.log('Side panel closed (detected by event), tabId:', tabId);
+});
+
 // 处理右键菜单点击
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   console.log('右键菜单被点击:', info.menuItemId);
