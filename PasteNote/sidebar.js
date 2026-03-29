@@ -5,6 +5,10 @@ class MemosPlugin {
   constructor() {
     this.notes = [];
     this.filteredNotes = [];
+    this.categories = {
+      "default": []
+    }; // 分类数据结构
+    this.currentCategory = 'default'; // 当前选中的分类
     this.currentFilter = { search: '', tags: [] };
     this.currentTabInfo = null; // 保存当前标签页信息
     this.currentPage = 1;
@@ -13,42 +17,52 @@ class MemosPlugin {
     this.init();
   }
 
-   async init() {
-      await this.loadNotes();
-      await this.getCurrentTabInfo();
-      this.bindEvents();
-      // 在 init 中调用 filterNotes 而不是 renderNotes，确保正确的排序
-      this.filterNotes();
-      this.renderTags();
-      this.renderCalendar();
-      this.updateSyncButtons();
-      this.listenForTabChanges();
-      this.bindScrollEvent();
-    }
-
-    async loadNotes() {
-       const result = await chrome.storage.local.get(['memos_notes']);
-       this.notes = result.memos_notes || [];
-       // 为旧数据添加颜色属性
-       this.notes.forEach(note => {
-         if (!note.color) {
-           note.color = 'white';
-         }
-       });
-       // 确保 filteredNotes 正确初始化，保持置顶顺序：先排序再复制
-       const sortedNotes = [...this.notes];
-       sortedNotes.sort((a, b) => {
-         if (a.pinned && !b.pinned) return -1;
-         if (!a.pinned && b.pinned) return 1;
-         return new Date(b.createdAt) - new Date(a.createdAt);
-       });
-       this.filteredNotes = sortedNotes;
-       this.currentPage = 1;
-       this.renderedCount = 0;
+    async init() {
+       await this.loadNotes();
+       await this.getCurrentTabInfo();
+       this.bindEvents();
+       // 在 init 中调用 filterNotes 而不是 renderNotes，确保正确的排序
+       this.filterNotes();
+       this.renderCategories();
+       this.renderTags();
+       this.renderCalendar();
+       this.updateSyncButtons();
+       this.listenForTabChanges();
+       this.bindScrollEvent();
      }
 
+async loadNotes() {
+   const result = await chrome.storage.local.get(['memos_notes', 'memos_categories']);
+   this.notes = result.memos_notes || [];
+   this.categories = result.memos_categories || {
+     "default": []
+   };
+   // 为旧数据添加颜色属性
+   this.notes.forEach(note => {
+     if (!note.color) {
+       note.color = 'white';
+     }
+     if (!note.category) {
+       note.category = 'default';
+     }
+   });
+   // 确保 filteredNotes 正确初始化，保持置顶顺序：先排序再复制
+   const sortedNotes = [...this.notes];
+   sortedNotes.sort((a, b) => {
+     if (a.pinned && !b.pinned) return -1;
+     if (!a.pinned && b.pinned) return 1;
+     return new Date(b.createdAt) - new Date(a.createdAt);
+   });
+   this.filteredNotes = sortedNotes;
+   this.currentPage = 1;
+   this.renderedCount = 0;
+ }
+
   async saveNotes() {
-    await chrome.storage.local.set({ memos_notes: this.notes });
+    await chrome.storage.local.set({ 
+  memos_notes: this.notes,
+  memos_categories: this.categories
+});
     // 如果启用了云同步，自动上传到云端
     const result = await chrome.storage.local.get(['cos_enabled']);
     const syncEnabled = result.cos_enabled === true;
@@ -96,39 +110,141 @@ class MemosPlugin {
     });
   }
 
-   async loadNotes() {
-       const result = await chrome.storage.local.get(['memos_notes', 'memos_color']);
-       this.notes = result.memos_notes || [];
-       this.currentColor = result.memos_color || 'white';
-       // 为旧数据添加颜色属性
-       this.notes.forEach(note => {
-         if (!note.color) {
-           note.color = 'white';
-         }
-       });
-       // 确保 filteredNotes 正确初始化，保持置顶顺序：先排序再复制
-       const sortedNotes = [...this.notes];
-       sortedNotes.sort((a, b) => {
-         if (a.pinned && !b.pinned) return -1;
-         if (!a.pinned && b.pinned) return 1;
-         return new Date(b.createdAt) - new Date(a.createdAt);
-       });
-       this.filteredNotes = sortedNotes;
-       this.currentPage = 1;
-       this.renderedCount = 0;
-     }
+    async loadNotes() {
+        const result = await chrome.storage.local.get(['memos_notes', 'memos_categories', 'memos_color']);
+        this.notes = result.memos_notes || [];
+        this.categories = result.memos_categories || {
+          "default": []
+        };
+        this.currentColor = result.memos_color || 'white';
+        // 为旧数据添加颜色属性和分类属性
+        this.notes.forEach(note => {
+          if (!note.color) {
+            note.color = 'white';
+          }
+          if (!note.category) {
+            note.category = 'default';
+          }
+        });
+        // 确保 filteredNotes 正确初始化，保持置顶顺序：先排序再复制
+        const sortedNotes = [...this.notes];
+        sortedNotes.sort((a, b) => {
+          if (a.pinned && !b.pinned) return -1;
+          if (!a.pinned && b.pinned) return 1;
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        });
+        this.filteredNotes = sortedNotes;
+        this.currentPage = 1;
+        this.renderedCount = 0;
+      }
 
   async saveNotes() {
-    await chrome.storage.local.set({ memos_notes: this.notes });
+    await chrome.storage.local.set({ 
+  memos_notes: this.notes,
+  memos_categories: this.categories
+});
     // 如果启用了云同步，自动上传到云端
     const result = await chrome.storage.local.get(['cos_enabled']);
     const syncEnabled = result.cos_enabled === true;
     if (syncEnabled) {
       this.syncToCloud();
     }
-  }
+   }
 
-  changeNoteColor(noteId, color) {
+   // 分类管理方法
+   addCategory(categoryName) {
+     if (!categoryName || this.categories[categoryName]) {
+       return false;
+     }
+     this.categories[categoryName] = [];
+     this.saveNotes();
+     this.renderCategories();
+     return true;
+   }
+
+   deleteCategory(categoryName) {
+     if (categoryName === 'default') {
+       this.showToast('默认分类不能删除');
+       return false;
+     }
+     
+     // 将该分类下的笔记移动到默认分类
+     if (this.categories[categoryName]) {
+       this.notes.forEach(note => {
+         if (note.category === categoryName) {
+           note.category = 'default';
+         }
+       });
+       delete this.categories[categoryName];
+       this.saveNotes();
+       this.renderCategories();
+       this.filterNotes();
+       return true;
+     }
+     return false;
+   }
+
+   switchCategory(categoryName) {
+     if (this.categories[categoryName]) {
+       this.currentCategory = categoryName;
+       this.filterNotes();
+       this.renderCategories();
+     }
+   }
+
+   renderCategories() {
+     const container = document.getElementById('categoriesContainer');
+     if (!container) return;
+     
+     // 保护静态的默认和添加按钮
+     const defaultBtn = container.querySelector('button[data-category="default"]');
+     const addBtn = document.getElementById('addCategoryBtn');
+     
+     // 清除所有动态生成的分类按钮（除了默认和添加按钮）
+     const buttons = container.querySelectorAll('button.category-btn');
+     buttons.forEach(btn => {
+       if (btn !== defaultBtn && btn !== addBtn) {
+         btn.remove();
+       }
+     });
+     
+     // 为每个分类创建按钮（除了默认分类，默认分类已经作为静态HTML存在）
+     Object.keys(this.categories).forEach(category => {
+       if (category !== 'default') {
+         const btn = document.createElement('button');
+         btn.className = 'btn btn-small category-btn' + (category === this.currentCategory ? ' active' : '');
+         btn.textContent = category;
+         btn.dataset.category = category;
+         
+         // 添加点击事件
+         btn.addEventListener('click', () => {
+           this.switchCategory(category);
+         });
+         
+         // 添加删除按钮
+         const deleteBtn = document.createElement('span');
+         deleteBtn.textContent = ' ×';
+         deleteBtn.style.cursor = 'pointer';
+         deleteBtn.style.marginLeft = '4px';
+         deleteBtn.addEventListener('click', (e) => {
+           e.stopPropagation();
+           if (confirm(`确定要删除分类"${category}"吗？`)) {
+             this.deleteCategory(category);
+           }
+         });
+         btn.appendChild(deleteBtn);
+         
+         container.insertBefore(btn, addBtn);
+       }
+     });
+     
+     // 更新默认按钮的激活状态
+     if (defaultBtn) {
+       defaultBtn.classList.toggle('active', this.currentCategory === 'default');
+     }
+   }
+
+   changeNoteColor(noteId, color) {
     const noteIndex = this.notes.findIndex(note => note.id == noteId);
     if (noteIndex !== -1) {
       this.notes[noteIndex].color = color;
@@ -288,19 +404,37 @@ class MemosPlugin {
     }
   }
 
-  bindEvents() {
-    document.getElementById('searchInput').addEventListener('input', (e) => {
-      this.currentFilter.search = e.target.value;
-      this.filterNotes();
-    });
+   bindEvents() {
+     document.getElementById('searchInput').addEventListener('input', (e) => {
+       this.currentFilter.search = e.target.value;
+       this.filterNotes();
+     });
 
-    document.getElementById('addUrlNoteBtn').addEventListener('click', () => {
-      this.addUrlNote();
-    });
+     // 分类按钮事件
+     document.getElementById('addCategoryBtn').addEventListener('click', () => {
+       const categoryName = prompt('请输入分类名称:');
+       if (categoryName && this.addCategory(categoryName)) {
+         this.showToast(`分类"${categoryName}"已添加`);
+       } else if (categoryName) {
+         this.showToast('分类已存在或名称无效');
+       }
+     });
 
-    document.getElementById('addNoteBtn').addEventListener('click', () => {
-      this.showNoteModal();
-    });
+     // 默认分类按钮事件（静态HTML中的元素）
+     const defaultCategoryBtn = document.querySelector('#categoriesContainer button[data-category="default"]');
+     if (defaultCategoryBtn) {
+       defaultCategoryBtn.addEventListener('click', () => {
+         this.switchCategory('default');
+       });
+     }
+
+     document.getElementById('addUrlNoteBtn').addEventListener('click', () => {
+       this.addUrlNote();
+     });
+
+     document.getElementById('addNoteBtn').addEventListener('click', () => {
+       this.showNoteModal();
+     });
 
     document.getElementById('saveNoteBtn').addEventListener('click', () => {
       this.saveNote();
@@ -389,6 +523,11 @@ class MemosPlugin {
 
   filterNotes() {
     this.filteredNotes = this.notes.filter(note => {
+      // 分类过滤
+      if (note.category !== this.currentCategory) {
+        return false;
+      }
+      
       const matchesSearch = !this.currentFilter.search ||
         note.title.toLowerCase().includes(this.currentFilter.search.toLowerCase()) ||
         note.content.toLowerCase().includes(this.currentFilter.search.toLowerCase());
@@ -423,7 +562,7 @@ class MemosPlugin {
      });
      this.currentPage = 1;
      this.renderNotes();
-  }
+   }
 
   renderNotes() {
     const container = document.getElementById('notesList');
@@ -982,41 +1121,42 @@ class MemosPlugin {
     }
   }
 
-   saveNote() {
-      const title = document.getElementById('noteTitle').value.trim();
-      const content = document.getElementById('noteContent').value.trim();
-      const tags = [...this.selectedTags];
+    saveNote() {
+       const title = document.getElementById('noteTitle').value.trim();
+       const content = document.getElementById('noteContent').value.trim();
+       const tags = [...this.selectedTags];
 
-      if (this.editingIndex !== null) {
-        // 编辑现有笔记，保留原有的 createdAt
-        const existingNote = this.notes[this.editingIndex];
-        this.notes[this.editingIndex] = {
-          ...existingNote,
-          title,
-          content,
-          tags,
-          updatedAt: new Date().toISOString()
-        };
-      } else {
-        // 新建笔记
-        const note = {
-          id: Date.now(),
-          title,
-          content,
-          tags,
-          color: this.currentColor,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        this.notes.unshift(note);
-      }
+       if (this.editingIndex !== null) {
+         // 编辑现有笔记，保留原有的 createdAt
+         const existingNote = this.notes[this.editingIndex];
+         this.notes[this.editingIndex] = {
+           ...existingNote,
+           title,
+           content,
+           tags,
+           updatedAt: new Date().toISOString()
+         };
+       } else {
+         // 新建笔记，默认添加到当前分类
+         const note = {
+           id: Date.now(),
+           title,
+           content,
+           tags,
+           color: this.currentColor,
+           category: this.currentCategory,
+           createdAt: new Date().toISOString(),
+           updatedAt: new Date().toISOString()
+         };
+         this.notes.unshift(note);
+       }
 
-      this.saveNotes();
-      this.filterNotes();
-      this.renderTags();
-      this.renderCalendar();
-      this.hideNoteModal();
-    }
+       this.saveNotes();
+       this.filterNotes();
+       this.renderTags();
+       this.renderCalendar();
+       this.hideNoteModal();
+     }
 
   editNote(index) {
     const actualIndex = this.notes.findIndex(note => note.id === this.filteredNotes[index].id);
@@ -1110,63 +1250,64 @@ class MemosPlugin {
     }, 2000);
   }
 
-  async addUrlNote() {
-    // 使用保存的当前标签页信息
-    let url = '';
-    let title = '';
+   async addUrlNote() {
+     // 使用保存的当前标签页信息
+     let url = '';
+     let title = '';
 
-    if (this.currentTabInfo && this.currentTabInfo.url) {
-      url = this.currentTabInfo.url;
-      title = this.currentTabInfo.title || '';
-    } else {
-      // 如果没有保存的信息，尝试获取
-      try {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tab && tab.url) {
-          url = tab.url;
-          title = tab.title || '';
-        } else {
-          this.showToast('无法获取当前页面链接');
-          return;
-        }
-      } catch (error) {
-        this.showToast('无法获取当前页面链接');
-        return;
-      }
-    }
+     if (this.currentTabInfo && this.currentTabInfo.url) {
+       url = this.currentTabInfo.url;
+       title = this.currentTabInfo.title || '';
+     } else {
+       // 如果没有保存的信息，尝试获取
+       try {
+         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+         if (tab && tab.url) {
+           url = tab.url;
+           title = tab.title || '';
+         } else {
+           this.showToast('无法获取当前页面链接');
+           return;
+         }
+       } catch (error) {
+         this.showToast('无法获取当前页面链接');
+         return;
+       }
+     }
 
-    // 统一处理各种连字符和空格格式
-    // 先将所有 &nbsp; 替换为普通空格
-    title = title.replace(/&nbsp;/gi, ' ');
+     // 统一处理各种连字符和空格格式
+     // 先将所有 &nbsp; 替换为普通空格
+     title = title.replace(/&nbsp;/gi, ' ');
 
-    // 处理前后带空格的连字符：&nbsp;-&nbsp;、 - 、&nbsp;-、-&nbsp;
-    title = title.replace(/\s+-\s+/g, ' - ');
+     // 处理前后带空格的连字符：&nbsp;-&nbsp;、 - 、&nbsp;-、-&nbsp;
+     title = title.replace(/\s+-\s+/g, ' - ');
 
-    // 去掉第一个 " - " 及其后面的所有内容
-    const dashIndex = title.indexOf(' - ');
-    if (dashIndex > -1) {
-      title = title.substring(0, dashIndex);
-    }
-    title = title.trim();
+     // 去掉第一个 " - " 及其后面的所有内容
+     const dashIndex = title.indexOf(' - ');
+     if (dashIndex > -1) {
+       title = title.substring(0, dashIndex);
+     }
+     title = title.trim();
 
-    // 创建新笔记
-    const newNote = {
-      id: Date.now().toString(),
-      title: title,
-      content: url,
-      tags: ['URL'],
-      createdAt: new Date().toISOString(),
-      pinned: false
-    };
+     // 创建新笔记，默认添加到当前分类
+     const newNote = {
+       id: Date.now().toString(),
+       title: title,
+       content: url,
+       tags: ['URL'],
+       category: this.currentCategory,
+       createdAt: new Date().toISOString(),
+       pinned: false
+     };
 
-    // 保存笔记
-    this.notes.unshift(newNote);
-    await this.saveNotes();
-    this.filterNotes();
-    this.renderTags();
-    this.renderCalendar();
-    this.showToast('已添加 URL 笔记');
-  }
+     // 保存笔记
+     this.notes.unshift(newNote);
+     await this.saveNotes();
+     this.filterNotes();
+     this.renderTags();
+     this.renderCalendar();
+     this.showToast('已添加 URL 笔记');
+   }
 
   async showSyncModal() {
     const modal = document.getElementById('syncModal');

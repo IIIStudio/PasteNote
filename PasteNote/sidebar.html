@@ -5,18 +5,56 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PasteNote - Sidebar</title>
   <link rel="stylesheet" href="popup.css">
-  <style>
-    /* 侧边栏特定的样式调整 */
-    body {
-      width: 100% !important;
-      height: 100vh !important;
-      max-height: 100vh !important;
-      min-height: 100vh !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      overflow-x: hidden !important;
-      overflow-y: auto !important;
-    }
+    <style>
+      /* 侧边栏特定的样式调整 */
+      body {
+        width: 100% !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
+        min-height: 100vh !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+      }
+
+      /* 分类按钮样式 */
+      .category-filter {
+        margin-bottom: 8px;
+      }
+
+      .category-btn {
+        background: #f5f5f5;
+        color: #666;
+        border: 1px solid #ddd;
+        margin-right: 4px;
+        font-size: 12px;
+        padding: 4px 8px;
+      }
+
+      .category-btn.active {
+        background: #007cba;
+        color: white;
+        border-color: #007cba;
+      }
+
+      .category-btn:hover {
+        background: #e0e0e0;
+      }
+
+      .category-btn.active:hover {
+        background: #005a87;
+      }
+
+      #addCategoryBtn {
+        background: #4caf50;
+        color: white;
+        border-color: #388e3c;
+      }
+
+      #addCategoryBtn:hover {
+        background: #388e3c;
+      }
 
     .container {
       max-width: 100%;
@@ -133,6 +171,14 @@
 
     <div class="search-box">
       <input type="text" id="searchInput" placeholder="搜索笔记...">
+    </div>
+
+    <div class="category-filter">
+      <div class="tags-label">分类:</div>
+      <div id="categoriesContainer" class="tags-list">
+        <button class="btn btn-small category-btn active" data-category="default">默认</button>
+        <button id="addCategoryBtn" class="btn btn-small category-btn">添加</button>
+      </div>
     </div>
 
     <div class="tags-filter">
