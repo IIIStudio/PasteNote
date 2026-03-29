@@ -18,43 +18,53 @@
         overflow-y: auto !important;
       }
 
-      /* 分类按钮样式 */
-      .category-filter {
-        margin-bottom: 8px;
-      }
+    /* 分类按钮样式 - 黑白配色，与标签一样 */
+    .category-filter {
+      margin-bottom: 8px;
+    }
 
-      .category-btn {
-        background: #f5f5f5;
-        color: #666;
-        border: 1px solid #ddd;
-        margin-right: 4px;
-        font-size: 12px;
-        padding: 4px 8px;
-      }
+    .tags-list {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+    }
 
-      .category-btn.active {
-        background: #007cba;
-        color: white;
-        border-color: #007cba;
-      }
+    .category-btn {
+      background: white;
+      color: black;
+      border: 1px solid #ccc;
+      margin-right: 4px;
+      font-size: 12px;
+      padding: 2px 6px;
+      line-height: 1.2;
+      height: 20px;
+      min-height: 20px;
+      white-space: nowrap;
+    }
 
-      .category-btn:hover {
-        background: #e0e0e0;
-      }
+    .category-btn.active {
+      background: black;
+      color: white;
+      border-color: black;
+    }
 
-      .category-btn.active:hover {
-        background: #005a87;
-      }
+    .category-btn:hover {
+      background: #f0f0f0;
+    }
 
-      #addCategoryBtn {
-        background: #4caf50;
-        color: white;
-        border-color: #388e3c;
-      }
+    .category-btn.active:hover {
+      background: #333;
+    }
 
-      #addCategoryBtn:hover {
-        background: #388e3c;
-      }
+    #addCategoryBtn {
+      background: white;
+      color: black;
+      border-color: #ccc;
+    }
+
+    #addCategoryBtn:hover {
+      background: #f0f0f0;
+    }
 
     .container {
       max-width: 100%;
@@ -173,24 +183,44 @@
       <input type="text" id="searchInput" placeholder="搜索笔记...">
     </div>
 
-    <div class="category-filter">
-      <div class="tags-label">分类:</div>
-      <div id="categoriesContainer" class="tags-list">
-        <button class="btn btn-small category-btn active" data-category="default">默认</button>
-        <button id="addCategoryBtn" class="btn btn-small category-btn">添加</button>
-      </div>
+  <div class="category-filter">
+    <div class="tags-label">分类:</div>
+    <div id="categoriesContainer" class="tags-list">
+      <button class="btn btn-small category-btn active" data-category="default">默认</button>
+      <button id="addCategoryBtn" class="btn btn-small category-btn">添加</button>
     </div>
+  </div>
+  
+  <script>
+    // 全局函数用于处理分类删除
+    function handleDeleteCategory(categoryName) {
+      console.log('handleDeleteCategory被调用，分类:', categoryName);
+      if (window.memesPlugin && typeof window.memesPlugin.publicDeleteCategory === 'function') {
+        window.memesPlugin.publicDeleteCategory(categoryName);
+      } else {
+        console.error('window.memesPlugin未定义或publicDeleteCategory方法不存在');
+        alert('删除功能暂时不可用');
+      }
+    }
+  </script>
 
     <div class="tags-filter">
       <div class="tags-label">标签:</div>
       <div id="tagsContainer" class="tags-list"></div>
     </div>
 
-    <div class="calendar-container">
-      <h3>活跃度</h3>
-      <div id="contributionCalendar" class="calendar"></div>
-      <div id="calendarTooltip" class="tooltip"></div>
-    </div>
+     <div class="calendar-container">
+       <h3>活跃度</h3>
+       <div id="contributionCalendar" class="calendar"></div>
+       <div id="calendarTooltip" class="tooltip"></div>
+     </div>
+
+     <!-- 用于模态框关闭的静态元素 -->
+     <div id="modalClosers" style="display: none;">
+       <span class="modal-close-trigger" data-target="noteModal"></span>
+       <span class="modal-close-trigger" data-target="syncModal"></span>
+       <span class="modal-close-trigger" data-target="tagModal"></span>
+     </div>
 
     <div class="notes-section">
       <div class="section-header">
