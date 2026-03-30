@@ -65,6 +65,40 @@
       background: #333;
     }
 
+    /* 分类删除按钮动画 */
+    .category-btn:not([data-category="default"]):not(#addCategoryBtn) {
+      position: relative;
+      padding-right: 8px;
+      transition: padding-right 0.2s;
+    }
+
+    .category-btn:not([data-category="default"]):not(#addCategoryBtn):hover {
+      padding-right: 15px;
+    }
+
+    .category-btn .delete-category {
+      position: absolute;
+      top: 50%;
+      right: 4px;
+      transform: translateY(-50%);
+      font-size: 14px;
+      font-weight: bold;
+      color: #999;
+      opacity: 0;
+      transition: opacity 0.2s, color 0.2s;
+      pointer-events: none;
+      line-height: 1;
+    }
+
+    .category-btn:hover .delete-category {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .category-btn .delete-category:hover {
+      color: #ff4444;
+    }
+
     #addCategoryBtn {
       background: white;
       color: black;

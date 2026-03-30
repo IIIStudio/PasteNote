@@ -206,36 +206,36 @@ async loadNotes() {
        console.log('renderCategories called, current categories:', Object.keys(this.categories));
        const container = document.getElementById('categoriesContainer');
        if (!container) return;
-       
+
        // 完全重建分类容器内容
        const defaultBtn = container.querySelector('button[data-category="default"]');
        const addBtn = container.querySelector('#addCategoryBtn');
-       
-       // 保存静态按钮的引用
-       const staticElements = [];
-       if (defaultBtn) staticElements.push(defaultBtn);
-       if (addBtn) staticElements.push(addBtn);
-       
+
        // 清空容器
        container.innerHTML = '';
-       
-       // 重新添加静态按钮
-       staticElements.forEach(el => container.appendChild(el));
-       
-       // 为每个分类创建按钮（除了默认分类）
+
+       // 先添加默认按钮
+       if (defaultBtn) {
+         container.appendChild(defaultBtn);
+       }
+
+       // 紧接着添加添加按钮
+       if (addBtn) {
+         container.appendChild(addBtn);
+       }
+
+       // 为每个分类创建按钮（除了默认分类），追加到添加按钮后面
        Object.keys(this.categories).forEach(category => {
          if (category !== 'default') {
            const btn = document.createElement('button');
            btn.className = 'btn btn-small category-btn' + (category === this.currentCategory ? ' active' : '');
            btn.textContent = category;
            btn.dataset.category = category;
-           
-           // 添加删除按钮
+
+           // 添加删除按钮（不显示在默认分类和添加按钮上）
            const deleteBtn = document.createElement('span');
            deleteBtn.className = 'delete-category';
-           deleteBtn.textContent = ' ×';
-           deleteBtn.style.cursor = 'pointer';
-           deleteBtn.style.marginLeft = '4px';
+           deleteBtn.textContent = '×';
            deleteBtn.addEventListener('click', (e) => {
              e.stopPropagation();
              console.log('删除按钮被点击，分类:', category);
@@ -244,26 +244,22 @@ async loadNotes() {
              }
            });
            btn.appendChild(deleteBtn);
-           
-           // 插入到添加按钮之前
-           if (addBtn) {
-             container.insertBefore(btn, addBtn);
-           } else {
-             container.appendChild(btn);
-           }
+
+           // 直接追加到容器末尾
+           container.appendChild(btn);
          }
         });
-        
-        // 更新默认按钮的激活状态 - 只有当前选中分类是default时才激活
-        if (defaultBtn) {
-          if (this.currentCategory === 'default') {
-            defaultBtn.classList.add('active');
-          } else {
-            defaultBtn.classList.remove('active');
-          }
-        }
-        
-        console.log('renderCategories completed, buttons in container:', container.children.length);
+
+       // 更新默认按钮的激活状态 - 只有当前选中分类是default时才激活
+       if (defaultBtn) {
+         if (this.currentCategory === 'default') {
+           defaultBtn.classList.add('active');
+         } else {
+           defaultBtn.classList.remove('active');
+         }
+       }
+
+       console.log('renderCategories completed, buttons in container:', container.children.length);
       }
 
    changeNoteColor(noteId, color) {
