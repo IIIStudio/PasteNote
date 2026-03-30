@@ -1016,6 +1016,10 @@ async loadNotes() {
          if (pinnedBanner) {
            pinnedBanner.style.display = note.pinned ? 'block' : 'none';
          }
+         // 编辑笔记时，根据笔记的分类加载对应的标签
+         const noteCategory = note.category || 'default';
+         const currentCategoryNotes = this.notes.filter(n => n.category === noteCategory);
+         this.availableTags = [...new Set(currentCategoryNotes.flatMap(n => n.tags))];
      } else {
        title.textContent = '新建笔记';
        document.getElementById('noteTitle').value = '';
@@ -1026,17 +1030,12 @@ async loadNotes() {
        }
        // 设置新建笔记的默认颜色为白色
        this.currentColor = 'white';
+       // 新建笔记时，根据当前选中的分类加载对应标签
+       this.updateAvailableTagsForCurrentCategory();
      }
 
-       this.loadAvailableTags();
        this.renderTagsWrapper();
        this.bindTagInputEvents();
-       
-       // 如果是新建笔记，根据当前选中的分类加载对应标签
-       if (noteIndex === null) {
-         this.updateAvailableTagsForCurrentCategory();
-         this.renderTagsWrapper();
-       }
 
        modal.style.display = 'block';
      }
@@ -1202,19 +1201,19 @@ async loadNotes() {
    deleteTag(tag) {
       console.log('deleteTag called with:', tag);
       console.log('Available tags before delete:', this.availableTags);
-      
+
       // 统计有多少笔记包含这个标签
       const notesWithTag = this.notes.filter(note => note.tags.includes(tag));
-      
-      let confirmMsg = `确定要删除标签"${tag}"吗？`;
-      if (notesWithTag.length > 0) {
-        confirmMsg = `此标签被 ${notesWithTag.length} 个笔记使用。删除标签将同时删除这些笔记。确定继续吗？`;
-      }
-      
-      if (confirm(confirmMsg)) {
-        // 彻底删除包含此标签的所有笔记
+
+      if (confirm(`确定要删除标签"${tag}"吗？删除后将从所有笔记中移除此标签。`)) {
+        // 从所有笔记中移除此标签
         if (notesWithTag.length > 0) {
-          this.notes = this.notes.filter(note => !note.tags.includes(tag));
+          this.notes.forEach(note => {
+            if (note.tags.includes(tag)) {
+              const tagIndex = note.tags.indexOf(tag);
+              note.tags.splice(tagIndex, 1);
+            }
+          });
         }
 
         // 从当前选中的标签中移除
@@ -1236,14 +1235,14 @@ async loadNotes() {
         }
 
         this.saveNotes();
-        
+
         // 立即重新渲染标签相关组件
         this.renderTagsWrapper();
         this.renderTags();
         this.filterNotes();
         this.renderNotes();
         this.renderCalendar();
-        
+
         // 强制刷新标签包装器DOM
         requestAnimationFrame(() => {
           this.renderTagsWrapper();
@@ -1254,9 +1253,9 @@ async loadNotes() {
             wrapper.style.opacity = '';
           }
         });
-        
+
         console.log('Available tags after delete:', this.availableTags);
-        this.showToast(`标签"${tag}"已删除，相关笔记已彻底删除`);
+        this.showToast(`标签"${tag}"已删除，已从相关笔记中移除`);
       }
     }
 
