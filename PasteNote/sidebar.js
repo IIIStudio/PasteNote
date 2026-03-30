@@ -1430,17 +1430,36 @@ async loadNotes() {
     document.getElementById('syncModal').style.display = 'none';
   }
 
-  async saveSyncConfig() {
-    const enableCheckbox = document.getElementById('enableCloudSync');
-    const secretId = document.getElementById('syncSecretId').value.trim();
-    const secretKey = document.getElementById('syncSecretKey').value.trim();
-    const bucket = document.getElementById('syncBucket').value.trim();
-    const region = document.getElementById('syncRegion').value.trim();
+   async saveSyncConfig() {
+     const enableCheckbox = document.getElementById('enableCloudSync');
+     const secretId = document.getElementById('syncSecretId').value.trim();
+     const secretKey = document.getElementById('syncSecretKey').value.trim();
+     const bucket = document.getElementById('syncBucket').value.trim();
+     const region = document.getElementById('syncRegion').value.trim();
 
-    if (enableCheckbox.checked && (!secretId || !secretKey || !bucket || !region)) {
-      alert('启用云同步时请填写完整的配置信息');
-      return;
-    }
+     // 更严格的验证：如果启用云同步，所有字段都必须填写且不能为空
+     if (enableCheckbox.checked) {
+       if (!secretId) {
+         alert('启用云同步时必须填写 SecretId');
+         document.getElementById('syncSecretId').focus();
+         return;
+       }
+       if (!secretKey) {
+         alert('启用云同步时必须填写 SecretKey');
+         document.getElementById('syncSecretKey').focus();
+         return;
+       }
+       if (!bucket) {
+         alert('启用云同步时必须填写存储桶名称');
+         document.getElementById('syncBucket').focus();
+         return;
+       }
+       if (!region) {
+         alert('启用云同步时必须填写地域');
+         document.getElementById('syncRegion').focus();
+         return;
+       }
+     }
 
     const storageData = {
       cos_enabled: enableCheckbox.checked
@@ -1465,18 +1484,26 @@ async loadNotes() {
     this.hideSyncModal();
   }
 
-  async getCloudConfig() {
-    const result = await chrome.storage.local.get(['cos_enabled', 'cos_secretId', 'cos_secretKey', 'cos_bucket', 'cos_region']);
-    const enabled = result.cos_enabled === true;
-    if (!enabled) return null;
+   async getCloudConfig() {
+     const result = await chrome.storage.local.get(['cos_enabled', 'cos_secretId', 'cos_secretKey', 'cos_bucket', 'cos_region']);
+     const enabled = result.cos_enabled === true;
+     if (!enabled) return null;
 
-    return {
-      secretId: result.cos_secretId,
-      secretKey: result.cos_secretKey,
-      bucket: result.cos_bucket,
-      region: result.cos_region
-    };
-  }
+     // 检查必要的配置字段是否都存在且不为空
+     if (!result.cos_secretId || !result.cos_secretKey || !result.cos_bucket || !result.cos_region) {
+       console.warn('云同步配置不完整，已自动禁用');
+       // 自动禁用不完整的配置
+       await chrome.storage.local.set({ cos_enabled: false });
+       return null;
+     }
+
+     return {
+       secretId: result.cos_secretId,
+       secretKey: result.cos_secretKey,
+       bucket: result.cos_bucket,
+       region: result.cos_region
+     };
+   }
 
   async downloadFromCloud() {
     const config = await this.getCloudConfig();
@@ -1513,29 +1540,46 @@ async loadNotes() {
     }
   }
 
-  uploadToCloud() {
-    const config = this.getCloudConfig();
-    if (!config) {
-      alert('请先启用并配置云同步');
-      return;
-    }
+   async uploadToCloud() {
+     const config = await this.getCloudConfig();
+     if (!config) {
+       alert('请先启用并配置云同步');
+       return;
+     }
 
-    if (typeof CloudSync === 'undefined') {
-      alert('云同步模块未加载');
-      return;
-    }
+     // 详细检查配置参数
+     console.log('Upload config:', config);
+     if (!config.bucket) {
+       alert('配置错误：Bucket 参数为空，请重新配置云同步');
+       return;
+     }
+     if (!config.secretId) {
+       alert('配置错误：SecretId 参数为空，请重新配置云同步');
+       return;
+     }
+     if (!config.secretKey) {
+       alert('配置错误：SecretKey 参数为空，请重新配置云同步');
+       return;
+     }
+     if (!config.region) {
+       alert('配置错误：Region 参数为空，请重新配置云同步');
+       return;
+     }
 
-    try {
-      const sync = new CloudSync(config);
-      sync.upload(this.notes).then(() => {
-        this.showToast('已上传到云端');
-      }).catch(err => {
-        alert('上传失败: ' + err.message);
-      });
-    } catch (err) {
-      alert('初始化同步失败: ' + err.message);
-    }
-  }
+     if (typeof CloudSync === 'undefined') {
+       alert('云同步模块未加载');
+       return;
+     }
+
+     try {
+       const sync = new CloudSync(config);
+       await sync.upload(this.notes);
+       this.showToast('已上传到云端');
+     } catch (err) {
+       console.error('Upload error details:', err);
+       alert('上传失败: ' + err.message);
+     }
+   }
 
   async updateSyncButtons() {
     const importBtn = document.getElementById('importBtn');
