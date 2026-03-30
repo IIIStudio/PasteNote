@@ -2,12 +2,14 @@
 chrome.runtime.onInstalled.addListener(() => {
   console.log('PasteNote extension installed');
 
-  // 创建右键菜单
-  chrome.contextMenus.create({
-    id: 'pastenote-menu',
-    title: 'PasteNote - 插入笔记',
-    contexts: ['editable']
-  });
+// 创建右键菜单 - 主菜单
+chrome.contextMenus.create({
+  id: 'pastenote-menu',
+  title: 'PasteNote - 插入笔记',
+  contexts: ['editable']
+});
+
+// 创建分类子菜单项（动态生成会在点击时处理）
 });
 
 // 处理图标点击打开/关闭侧边栏

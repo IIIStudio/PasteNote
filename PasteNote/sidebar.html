@@ -5,17 +5,74 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PasteNote - Sidebar</title>
   <link rel="stylesheet" href="popup.css">
-  <style>
-    /* 侧边栏特定的样式调整 */
-    body {
-      width: 100% !important;
-      height: 100vh !important;
-      max-height: 100vh !important;
-      min-height: 100vh !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      overflow-x: hidden !important;
-      overflow-y: auto !important;
+    <style>
+      /* 侧边栏特定的样式调整 */
+      body {
+        width: 100% !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
+        min-height: 100vh !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+      }
+
+     /* 分类按钮样式 - 黑白配色，与标签一样 */
+     .category-filter {
+       margin-bottom: 8px;
+       display: flex;
+       align-items: center;
+       flex-wrap: wrap;
+     }
+
+     .tags-label {
+       margin-right: 8px;
+       white-space: nowrap;
+     }
+
+     .tags-list {
+       display: flex;
+       flex-wrap: wrap;
+       align-items: center;
+       flex: 1;
+     }
+
+    .category-btn {
+      background: white;
+      color: black;
+      border: 1px solid #ccc;
+      margin-right: 4px;
+      font-size: 12px;
+      padding: 2px 6px;
+      line-height: 1.2;
+      height: 20px;
+      min-height: 20px;
+      white-space: nowrap;
+    }
+
+    .category-btn.active {
+      background: black;
+      color: white;
+      border-color: black;
+    }
+
+    .category-btn:hover {
+      background: #f0f0f0;
+    }
+
+    .category-btn.active:hover {
+      background: #333;
+    }
+
+    #addCategoryBtn {
+      background: white;
+      color: black;
+      border-color: #ccc;
+    }
+
+    #addCategoryBtn:hover {
+      background: #f0f0f0;
     }
 
     .container {
@@ -135,16 +192,31 @@
       <input type="text" id="searchInput" placeholder="搜索笔记...">
     </div>
 
+    <div class="category-filter">
+      <div class="tags-label">分类:</div>
+      <div id="categoriesContainer" class="tags-list">
+        <button class="btn btn-small category-btn active" data-category="default">默认</button>
+        <button id="addCategoryBtn" class="btn btn-small category-btn">添加</button>
+      </div>
+    </div>
+
     <div class="tags-filter">
       <div class="tags-label">标签:</div>
       <div id="tagsContainer" class="tags-list"></div>
     </div>
 
-    <div class="calendar-container">
-      <h3>活跃度</h3>
-      <div id="contributionCalendar" class="calendar"></div>
-      <div id="calendarTooltip" class="tooltip"></div>
-    </div>
+     <div class="calendar-container">
+       <h3>活跃度</h3>
+       <div id="contributionCalendar" class="calendar"></div>
+       <div id="calendarTooltip" class="tooltip"></div>
+     </div>
+
+     <!-- 用于模态框关闭的静态元素 -->
+     <div id="modalClosers" style="display: none;">
+       <span class="modal-close-trigger" data-target="noteModal"></span>
+       <span class="modal-close-trigger" data-target="syncModal"></span>
+       <span class="modal-close-trigger" data-target="tagModal"></span>
+     </div>
 
     <div class="notes-section">
       <div class="section-header">
@@ -171,10 +243,9 @@
         </div>
       </div>
     <div class="modal-actions">
-      <button id="deleteNoteBtn" class="btn">删除</button>
-      <button id="saveNoteBtn" class="btn btn-primary">保存</button>
-      <button id="cancelBtn" class="btn">取消</button>
-    </div>
+       <button id="saveNoteBtn" class="btn btn-primary">保存</button>
+       <button id="cancelBtn" class="btn">取消</button>
+     </div>
     </div>
   </div>
 

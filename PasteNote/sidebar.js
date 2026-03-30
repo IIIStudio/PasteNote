@@ -5,73 +5,77 @@ class MemosPlugin {
   constructor() {
     this.notes = [];
     this.filteredNotes = [];
+    this.categories = {
+      "default": []
+    }; // 分类数据结构
+    this.currentCategory = 'default'; // 当前选中的分类
     this.currentFilter = { search: '', tags: [] };
     this.currentTabInfo = null; // 保存当前标签页信息
     this.currentPage = 1;
     this.pageSize = 20;
     this.isLoading = false;
+    // 从存储中恢复上次选择的分类
+    this.restoreLastCategory();
     this.init();
   }
 
-   async init() {
-      await this.loadNotes();
-      await this.getCurrentTabInfo();
-      this.bindEvents();
-      // 在 init 中调用 filterNotes 而不是 renderNotes，确保正确的排序
-      this.filterNotes();
-      this.renderTags();
-      this.renderCalendar();
-      this.updateSyncButtons();
-      this.listenForTabChanges();
-      this.bindScrollEvent();
-    }
+  async init() {
+     await this.loadNotes();
+     await this.getCurrentTabInfo();
+     this.bindEvents();
+     // 在 init 中调用 filterNotes 而不是 renderNotes，确保正确的排序
+     this.filterNotes();
+     this.renderCategories();
+     this.renderTags();
+     this.renderCalendar();
+     this.updateSyncButtons();
+     this.listenForTabChanges();
+     this.bindScrollEvent();
+     // 保存当前分类到存储
+     this.saveLastCategory();
+   }
 
-    async loadNotes() {
-       const result = await chrome.storage.local.get(['memos_notes']);
-       this.notes = result.memos_notes || [];
-       // 为旧数据添加颜色属性
-       this.notes.forEach(note => {
-         if (!note.color) {
-           note.color = 'white';
-         }
-       });
-       // 确保 filteredNotes 正确初始化，保持置顶顺序：先排序再复制
-       const sortedNotes = [...this.notes];
-       sortedNotes.sort((a, b) => {
-         if (a.pinned && !b.pinned) return -1;
-         if (!a.pinned && b.pinned) return 1;
-         return new Date(b.createdAt) - new Date(a.createdAt);
-       });
-       this.filteredNotes = sortedNotes;
-       this.currentPage = 1;
-       this.renderedCount = 0;
+async loadNotes() {
+   const result = await chrome.storage.local.get(['memos_notes', 'memos_categories']);
+   this.notes = result.memos_notes || [];
+   this.categories = result.memos_categories || {
+     "default": []
+   };
+   // 为旧数据添加颜色属性
+   this.notes.forEach(note => {
+     if (!note.color) {
+       note.color = 'white';
      }
+     if (!note.category) {
+       note.category = 'default';
+     }
+   });
+   // 确保 filteredNotes 正确初始化，保持置顶顺序：先排序再复制
+   const sortedNotes = [...this.notes];
+   sortedNotes.sort((a, b) => {
+     if (a.pinned && !b.pinned) return -1;
+     if (!a.pinned && b.pinned) return 1;
+     return new Date(b.createdAt) - new Date(a.createdAt);
+   });
+   this.filteredNotes = sortedNotes;
+   this.currentPage = 1;
+   this.renderedCount = 0;
+ }
 
   async saveNotes() {
-    await chrome.storage.local.set({ memos_notes: this.notes });
+    await chrome.storage.local.set({ 
+  memos_notes: this.notes,
+  memos_categories: this.categories
+});
     // 如果启用了云同步，自动上传到云端
     const result = await chrome.storage.local.get(['cos_enabled']);
     const syncEnabled = result.cos_enabled === true;
     if (syncEnabled) {
       this.syncToCloud();
     }
-  }
+   }
 
-    async init() {
-      await this.loadNotes();
-      await this.getCurrentTabInfo();
-      this.bindEvents();
-      this.bindColorPickerEvents();
-      // 在 init 中调用 filterNotes 而不是 renderNotes，确保正确的排序
-      this.filterNotes();
-      this.renderTags();
-      this.renderCalendar();
-      this.updateSyncButtons();
-      this.listenForTabChanges();
-      this.bindScrollEvent();
-    }
-
-  async getCurrentTabInfo() {
+   async getCurrentTabInfo() {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab) {
@@ -84,51 +88,185 @@ class MemosPlugin {
     }
   }
 
-  listenForTabChanges() {
-    // 监听来自 background 的消息
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      if (message.type === 'tabChanged' || message.type === 'tabUpdated') {
-        this.currentTabInfo = {
-          url: message.url,
-          title: message.title
-        };
-      }
-    });
-  }
+    listenForTabChanges() {
+      // 监听来自 background 的消息
+      chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        if (message.type === 'tabChanged' || message.type === 'tabUpdated') {
+          this.currentTabInfo = {
+            url: message.url,
+            title: message.title
+          };
+        }
+      });
+    }
 
-   async loadNotes() {
-       const result = await chrome.storage.local.get(['memos_notes', 'memos_color']);
-       this.notes = result.memos_notes || [];
-       this.currentColor = result.memos_color || 'white';
-       // 为旧数据添加颜色属性
-       this.notes.forEach(note => {
-         if (!note.color) {
-           note.color = 'white';
-         }
-       });
-       // 确保 filteredNotes 正确初始化，保持置顶顺序：先排序再复制
-       const sortedNotes = [...this.notes];
-       sortedNotes.sort((a, b) => {
-         if (a.pinned && !b.pinned) return -1;
-         if (!a.pinned && b.pinned) return 1;
-         return new Date(b.createdAt) - new Date(a.createdAt);
-       });
-       this.filteredNotes = sortedNotes;
-       this.currentPage = 1;
-       this.renderedCount = 0;
+   // 分类管理方法
+   addCategory(categoryName) {
+     if (!categoryName || this.categories[categoryName]) {
+       return false;
      }
+     this.categories[categoryName] = [];
+     this.saveNotes();
+     this.renderCategories();
+     return true;
+   }
 
-  async saveNotes() {
-    await chrome.storage.local.set({ memos_notes: this.notes });
-    // 如果启用了云同步，自动上传到云端
-    const result = await chrome.storage.local.get(['cos_enabled']);
-    const syncEnabled = result.cos_enabled === true;
-    if (syncEnabled) {
-      this.syncToCloud();
+  // 恢复上次选择的分类
+  async restoreLastCategory() {
+    try {
+      const result = await chrome.storage.local.get(['lastSelectedCategory']);
+      if (result.lastSelectedCategory && this.categories[result.lastSelectedCategory]) {
+        this.currentCategory = result.lastSelectedCategory;
+      }
+    } catch (error) {
+      console.log('恢复分类失败:', error);
     }
   }
 
-  changeNoteColor(noteId, color) {
+  // 保存当前分类到存储
+  async saveLastCategory() {
+    try {
+      await chrome.storage.local.set({ lastSelectedCategory: this.currentCategory });
+    } catch (error) {
+      console.log('保存分类失败:', error);
+    }
+  }
+
+   deleteCategory(categoryName) {
+        console.log('deleteCategory called with:', categoryName);
+        console.log('Current categories before delete:', JSON.stringify(this.categories));
+        
+        if (categoryName === 'default') {
+          this.showToast('默认分类不能删除');
+          return false;
+        }
+        
+        // 如果删除的是当前选中的分类，切换到默认分类
+        if (this.currentCategory === categoryName) {
+          this.currentCategory = 'default';
+          this.saveLastCategory();
+        }
+        
+        // 彻底删除该分类下的所有笔记
+        if (this.categories[categoryName]) {
+          const notesToDelete = this.notes.filter(note => note.category === categoryName);
+          if (notesToDelete.length > 0) {
+            if (!confirm(`此分类下有 ${notesToDelete.length} 个笔记，删除分类将同时删除这些笔记。确定继续吗？`)) {
+              return false;
+            }
+            // 从notes数组中删除这些笔记
+            this.notes = this.notes.filter(note => note.category !== categoryName);
+          }
+          delete this.categories[categoryName];
+          this.saveNotes();
+          
+          console.log('Categories after delete:', JSON.stringify(this.categories));
+          
+          // 立即重新渲染分类（同步）
+          this.renderCategories();
+          
+          // 然后异步再次渲染确保更新
+          requestAnimationFrame(() => {
+            console.log('Re-rendering categories in next frame');
+            this.renderCategories();
+            
+            // 强制触发重排
+            const container = document.getElementById('categoriesContainer');
+            if (container) {
+              container.style.display = 'none';
+              container.offsetHeight; // 强制重排
+              container.style.display = '';
+            }
+          });
+          
+          this.renderTags();
+          this.filterNotes();
+          this.renderCalendar();
+          this.renderNotes();
+          
+          this.showToast(`分类"${categoryName}"已删除，相关笔记已彻底删除`);
+          return true;
+        }
+        console.log('Category not found:', categoryName);
+        return false;
+      }
+
+  switchCategory(categoryName) {
+    if (this.categories[categoryName]) {
+      this.currentCategory = categoryName;
+      this.filterNotes();
+      this.renderCategories();
+      this.renderTags();
+      // 保存当前分类到存储
+      this.saveLastCategory();
+    }
+  }
+
+     renderCategories() {
+       console.log('renderCategories called, current categories:', Object.keys(this.categories));
+       const container = document.getElementById('categoriesContainer');
+       if (!container) return;
+       
+       // 完全重建分类容器内容
+       const defaultBtn = container.querySelector('button[data-category="default"]');
+       const addBtn = container.querySelector('#addCategoryBtn');
+       
+       // 保存静态按钮的引用
+       const staticElements = [];
+       if (defaultBtn) staticElements.push(defaultBtn);
+       if (addBtn) staticElements.push(addBtn);
+       
+       // 清空容器
+       container.innerHTML = '';
+       
+       // 重新添加静态按钮
+       staticElements.forEach(el => container.appendChild(el));
+       
+       // 为每个分类创建按钮（除了默认分类）
+       Object.keys(this.categories).forEach(category => {
+         if (category !== 'default') {
+           const btn = document.createElement('button');
+           btn.className = 'btn btn-small category-btn' + (category === this.currentCategory ? ' active' : '');
+           btn.textContent = category;
+           btn.dataset.category = category;
+           
+           // 添加删除按钮
+           const deleteBtn = document.createElement('span');
+           deleteBtn.className = 'delete-category';
+           deleteBtn.textContent = ' ×';
+           deleteBtn.style.cursor = 'pointer';
+           deleteBtn.style.marginLeft = '4px';
+           deleteBtn.addEventListener('click', (e) => {
+             e.stopPropagation();
+             console.log('删除按钮被点击，分类:', category);
+             if (confirm(`确定要删除分类"${category}"吗？`)) {
+               this.deleteCategory(category);
+             }
+           });
+           btn.appendChild(deleteBtn);
+           
+           // 插入到添加按钮之前
+           if (addBtn) {
+             container.insertBefore(btn, addBtn);
+           } else {
+             container.appendChild(btn);
+           }
+         }
+        });
+        
+        // 更新默认按钮的激活状态 - 只有当前选中分类是default时才激活
+        if (defaultBtn) {
+          if (this.currentCategory === 'default') {
+            defaultBtn.classList.add('active');
+          } else {
+            defaultBtn.classList.remove('active');
+          }
+        }
+        
+        console.log('renderCategories completed, buttons in container:', container.children.length);
+      }
+
+   changeNoteColor(noteId, color) {
     const noteIndex = this.notes.findIndex(note => note.id == noteId);
     if (noteIndex !== -1) {
       this.notes[noteIndex].color = color;
@@ -288,19 +426,53 @@ class MemosPlugin {
     }
   }
 
-  bindEvents() {
-    document.getElementById('searchInput').addEventListener('input', (e) => {
-      this.currentFilter.search = e.target.value;
-      this.filterNotes();
-    });
+     bindEvents() {
+       document.getElementById('searchInput').addEventListener('input', (e) => {
+         this.currentFilter.search = e.target.value;
+         this.filterNotes();
+       });
 
-    document.getElementById('addUrlNoteBtn').addEventListener('click', () => {
-      this.addUrlNote();
-    });
+      // 分类容器事件委托 - 处理分类切换和删除
+      document.getElementById('categoriesContainer').addEventListener('click', (e) => {
+        // 优先处理删除按钮
+        const deleteBtn = e.target.closest('.delete-category');
+        if (deleteBtn) {
+          e.stopPropagation();
+          e.preventDefault();
+          const categoryBtn = deleteBtn.parentElement;
+          const categoryName = categoryBtn.dataset.category;
+          console.log('分类删除按钮被点击:', categoryName);
+          if (confirm(`确定要删除分类"${categoryName}"吗？`)) {
+            this.deleteCategory(categoryName);
+          }
+          return;
+        }
+        
+        // 处理分类切换
+        const categoryBtn = e.target.closest('button[data-category]');
+        if (categoryBtn && categoryBtn.id !== 'addCategoryBtn') {
+          const categoryName = categoryBtn.dataset.category;
+          this.switchCategory(categoryName);
+        }
+      });
 
-    document.getElementById('addNoteBtn').addEventListener('click', () => {
-      this.showNoteModal();
-    });
+     // 添加分类按钮事件
+     document.getElementById('addCategoryBtn').addEventListener('click', () => {
+       const categoryName = prompt('请输入分类名称:');
+       if (categoryName && this.addCategory(categoryName)) {
+         this.showToast(`分类"${categoryName}"已添加`);
+       } else if (categoryName) {
+         this.showToast('分类已存在或名称无效');
+       }
+     });
+
+     document.getElementById('addUrlNoteBtn').addEventListener('click', () => {
+       this.addUrlNote();
+     });
+
+     document.getElementById('addNoteBtn').addEventListener('click', () => {
+       this.showNoteModal();
+     });
 
     document.getElementById('saveNoteBtn').addEventListener('click', () => {
       this.saveNote();
@@ -310,27 +482,36 @@ class MemosPlugin {
       this.hideNoteModal();
     });
 
-    document.getElementById('deleteNoteBtn').addEventListener('click', () => {
-      this.deleteNote();
-    });
+     // 删除笔记按钮已移除，不需要绑定事件
 
-    // 笔记模态框关闭
-    document.querySelectorAll('#noteModal .close').forEach(el => {
-      el.addEventListener('click', () => {
+     // 笔记模态框关闭 - 使用统一的关闭触发器
+      document.querySelectorAll('.modal-close-trigger[data-target="noteModal"]').forEach(el => {
+        el.addEventListener('click', () => {
+          this.hideNoteModal();
+        });
+      });
+
+      // 笔记模态框右上角 X 按钮关闭
+      document.querySelector('#noteModal .close').addEventListener('click', () => {
         this.hideNoteModal();
       });
-    });
 
-    // 同步模态框事件
-    document.getElementById('syncBtn').addEventListener('click', () => {
-      this.showSyncModal();
-    });
+     // 同步模态框事件
+     document.getElementById('syncBtn').addEventListener('click', () => {
+       this.showSyncModal();
+     });
 
-    document.querySelectorAll('#syncModal .close').forEach(el => {
-      el.addEventListener('click', () => {
+     // 同步模态框关闭 - 使用统一的关闭触发器
+      document.querySelectorAll('.modal-close-trigger[data-target="syncModal"]').forEach(el => {
+        el.addEventListener('click', () => {
+          this.hideSyncModal();
+        });
+      });
+
+      // 同步模态框右上角 X 按钮关闭
+      document.querySelector('#syncModal .close').addEventListener('click', () => {
         this.hideSyncModal();
       });
-    });
 
     document.getElementById('enableCloudSync').addEventListener('change', (e) => {
       document.getElementById('cloudConfigSection').style.display =
@@ -389,6 +570,11 @@ class MemosPlugin {
 
   filterNotes() {
     this.filteredNotes = this.notes.filter(note => {
+      // 分类过滤
+      if (note.category !== this.currentCategory) {
+        return false;
+      }
+      
       const matchesSearch = !this.currentFilter.search ||
         note.title.toLowerCase().includes(this.currentFilter.search.toLowerCase()) ||
         note.content.toLowerCase().includes(this.currentFilter.search.toLowerCase());
@@ -423,7 +609,7 @@ class MemosPlugin {
      });
      this.currentPage = 1;
      this.renderNotes();
-  }
+   }
 
   renderNotes() {
     const container = document.getElementById('notesList');
@@ -567,7 +753,9 @@ class MemosPlugin {
   }
 
   renderTags() {
-    const allTags = [...new Set(this.notes.flatMap(note => note.tags))];
+    // 只获取当前分类下的笔记的标签
+    const currentCategoryNotes = this.notes.filter(note => note.category === this.currentCategory);
+    const allTags = [...new Set(currentCategoryNotes.flatMap(note => note.tags))];
     const container = document.getElementById('tagsContainer');
     container.innerHTML = '';
 
@@ -816,40 +1004,47 @@ class MemosPlugin {
     this.availableTags = [...new Set(this.notes.flatMap(note => note.tags))];
   }
 
-  renderTagsWrapper() {
-    const wrapper = document.getElementById('tagsWrapper');
+   renderTagsWrapper() {
+     const wrapper = document.getElementById('tagsWrapper');
 
-    // 保留添加标签按钮，移除其他标签
-    const addBtn = document.getElementById('addTagBtn');
-    wrapper.innerHTML = '';
-    wrapper.appendChild(addBtn);
+     // 保留添加标签按钮，移除其他标签
+     const addBtn = document.getElementById('addTagBtn');
+     wrapper.innerHTML = '';
+     wrapper.appendChild(addBtn);
 
-    // 渲染所有可用标签
-    this.availableTags.forEach(tag => {
-      const tagEl = document.createElement('div');
-      tagEl.className = 'tag' + (this.selectedTags.includes(tag) ? ' selected' : '');
+     // 渲染所有可用标签
+     this.availableTags.forEach(tag => {
+       const tagEl = document.createElement('div');
+       tagEl.className = 'tag' + (this.selectedTags.includes(tag) ? ' selected' : '');
 
-      // 创建标签文本节点
-      const tagText = document.createElement('span');
-      tagText.textContent = tag;
-      tagEl.appendChild(tagText);
+       // 创建标签文本节点
+       const tagText = document.createElement('span');
+       tagText.textContent = tag;
+       tagEl.appendChild(tagText);
 
-      // 为所有标签添加删除按钮
-      const deleteBtn = document.createElement('span');
-      deleteBtn.className = 'tag-delete';
-      deleteBtn.textContent = '×';
-      deleteBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.deleteTag(tag);
-      });
-      tagEl.appendChild(deleteBtn);
+       // 为所有标签添加删除按钮
+       const deleteBtn = document.createElement('span');
+       deleteBtn.className = 'tag-delete';
+       deleteBtn.textContent = '×';
+       deleteBtn.title = '删除标签';
+       deleteBtn.addEventListener('click', (e) => {
+         e.stopPropagation();
+         e.preventDefault();
+         console.log('标签删除按钮被点击:', tag);
+         this.deleteTag(tag);
+       });
+       tagEl.appendChild(deleteBtn);
 
-      tagEl.addEventListener('click', () => {
-        this.toggleTag(tag);
-      });
-      wrapper.appendChild(tagEl);
-    });
-  }
+       tagEl.addEventListener('click', (e) => {
+         // 如果点击的是删除按钮，不触发切换
+         if (e.target.classList.contains('tag-delete')) {
+           return;
+         }
+         this.toggleTag(tag);
+       });
+       wrapper.appendChild(tagEl);
+     });
+   }
 
   bindTagInputEvents() {
     // 添加标签按钮
@@ -858,19 +1053,26 @@ class MemosPlugin {
       this.showTagModal();
     };
 
-    // 标签弹窗事件
-    const tagModal = document.getElementById('tagModal');
-    const newTagInput = document.getElementById('newTagInput');
+      // 标签弹窗事件
+      const tagModal = document.getElementById('tagModal');
+      const newTagInput = document.getElementById('newTagInput');
 
-    // 关闭按钮
-    tagModal.querySelector('.close').onclick = () => {
-      this.hideTagModal();
-    };
+      // 关闭按钮 - 使用统一的关闭触发器
+      document.querySelectorAll('.modal-close-trigger[data-target="tagModal"]').forEach(el => {
+        el.addEventListener('click', () => {
+          this.hideTagModal();
+        });
+      });
 
-    // 取消按钮
-    document.getElementById('cancelAddTag').onclick = () => {
-      this.hideTagModal();
-    };
+      // 标签弹窗右上角 X 按钮关闭
+      document.querySelector('#tagModal .close').addEventListener('click', () => {
+        this.hideTagModal();
+      });
+
+     // 取消按钮
+     document.getElementById('cancelAddTag').addEventListener('click', () => {
+       this.hideTagModal();
+     });
 
     // 确认添加按钮
     document.getElementById('confirmAddTag').onclick = () => {
@@ -945,78 +1147,103 @@ class MemosPlugin {
     }
   }
 
-  deleteTag(tag) {
-    if (confirm(`确定要删除标签"${tag}"吗？这将从所有笔记中移除此标签。`)) {
-      // 从所有笔记中删除此标签
-      this.notes.forEach(note => {
-        const tagIndex = note.tags.indexOf(tag);
-        if (tagIndex > -1) {
-          note.tags.splice(tagIndex, 1);
+   deleteTag(tag) {
+      console.log('deleteTag called with:', tag);
+      console.log('Available tags before delete:', this.availableTags);
+      
+      // 统计有多少笔记包含这个标签
+      const notesWithTag = this.notes.filter(note => note.tags.includes(tag));
+      
+      let confirmMsg = `确定要删除标签"${tag}"吗？`;
+      if (notesWithTag.length > 0) {
+        confirmMsg = `此标签被 ${notesWithTag.length} 个笔记使用。删除标签将同时删除这些笔记。确定继续吗？`;
+      }
+      
+      if (confirm(confirmMsg)) {
+        // 彻底删除包含此标签的所有笔记
+        if (notesWithTag.length > 0) {
+          this.notes = this.notes.filter(note => !note.tags.includes(tag));
         }
-      });
 
-      // 从当前选中的标签中移除
-      const selectedIndex = this.selectedTags.indexOf(tag);
-      if (selectedIndex > -1) {
-        this.selectedTags.splice(selectedIndex, 1);
+        // 从当前选中的标签中移除
+        const selectedIndex = this.selectedTags.indexOf(tag);
+        if (selectedIndex > -1) {
+          this.selectedTags.splice(selectedIndex, 1);
+        }
+
+        // 从可用标签列表中移除
+        const availableIndex = this.availableTags.indexOf(tag);
+        if (availableIndex > -1) {
+          this.availableTags.splice(availableIndex, 1);
+        }
+
+        // 从当前过滤器中移除该标签
+        const filterIndex = this.currentFilter.tags.indexOf(tag);
+        if (filterIndex > -1) {
+          this.currentFilter.tags.splice(filterIndex, 1);
+        }
+
+        this.saveNotes();
+        
+        // 立即重新渲染标签相关组件
+        this.renderTagsWrapper();
+        this.renderTags();
+        this.filterNotes();
+        this.renderNotes();
+        this.renderCalendar();
+        
+        // 强制刷新标签包装器DOM
+        requestAnimationFrame(() => {
+          this.renderTagsWrapper();
+          const wrapper = document.getElementById('tagsWrapper');
+          if (wrapper) {
+            wrapper.style.opacity = '0.99';
+            wrapper.offsetHeight; // 强制重排
+            wrapper.style.opacity = '';
+          }
+        });
+        
+        console.log('Available tags after delete:', this.availableTags);
+        this.showToast(`标签"${tag}"已删除，相关笔记已彻底删除`);
       }
-
-      // 从可用标签列表中移除
-      const availableIndex = this.availableTags.indexOf(tag);
-      if (availableIndex > -1) {
-        this.availableTags.splice(availableIndex, 1);
-      }
-
-      // 从当前过滤器中移除该标签
-      const filterIndex = this.currentFilter.tags.indexOf(tag);
-      if (filterIndex > -1) {
-        this.currentFilter.tags.splice(filterIndex, 1);
-      }
-
-      this.saveNotes();
-      this.renderTagsWrapper();
-      this.renderTags();
-      this.filterNotes();
-      this.renderCalendar();
-      this.showToast(`标签"${tag}"已删除`);
     }
-  }
 
-   saveNote() {
-      const title = document.getElementById('noteTitle').value.trim();
-      const content = document.getElementById('noteContent').value.trim();
-      const tags = [...this.selectedTags];
+    saveNote() {
+       const title = document.getElementById('noteTitle').value.trim();
+       const content = document.getElementById('noteContent').value.trim();
+       const tags = [...this.selectedTags];
 
-      if (this.editingIndex !== null) {
-        // 编辑现有笔记，保留原有的 createdAt
-        const existingNote = this.notes[this.editingIndex];
-        this.notes[this.editingIndex] = {
-          ...existingNote,
-          title,
-          content,
-          tags,
-          updatedAt: new Date().toISOString()
-        };
-      } else {
-        // 新建笔记
-        const note = {
-          id: Date.now(),
-          title,
-          content,
-          tags,
-          color: this.currentColor,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        this.notes.unshift(note);
-      }
+       if (this.editingIndex !== null) {
+         // 编辑现有笔记，保留原有的 createdAt
+         const existingNote = this.notes[this.editingIndex];
+         this.notes[this.editingIndex] = {
+           ...existingNote,
+           title,
+           content,
+           tags,
+           updatedAt: new Date().toISOString()
+         };
+       } else {
+         // 新建笔记，默认添加到当前分类
+         const note = {
+           id: Date.now(),
+           title,
+           content,
+           tags,
+           color: this.currentColor,
+           category: this.currentCategory,
+           createdAt: new Date().toISOString(),
+           updatedAt: new Date().toISOString()
+         };
+         this.notes.unshift(note);
+       }
 
-      this.saveNotes();
-      this.filterNotes();
-      this.renderTags();
-      this.renderCalendar();
-      this.hideNoteModal();
-    }
+       this.saveNotes();
+       this.filterNotes();
+       this.renderTags();
+       this.renderCalendar();
+       this.hideNoteModal();
+     }
 
   editNote(index) {
     const actualIndex = this.notes.findIndex(note => note.id === this.filteredNotes[index].id);
@@ -1110,63 +1337,64 @@ class MemosPlugin {
     }, 2000);
   }
 
-  async addUrlNote() {
-    // 使用保存的当前标签页信息
-    let url = '';
-    let title = '';
+   async addUrlNote() {
+     // 使用保存的当前标签页信息
+     let url = '';
+     let title = '';
 
-    if (this.currentTabInfo && this.currentTabInfo.url) {
-      url = this.currentTabInfo.url;
-      title = this.currentTabInfo.title || '';
-    } else {
-      // 如果没有保存的信息，尝试获取
-      try {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tab && tab.url) {
-          url = tab.url;
-          title = tab.title || '';
-        } else {
-          this.showToast('无法获取当前页面链接');
-          return;
-        }
-      } catch (error) {
-        this.showToast('无法获取当前页面链接');
-        return;
-      }
-    }
+     if (this.currentTabInfo && this.currentTabInfo.url) {
+       url = this.currentTabInfo.url;
+       title = this.currentTabInfo.title || '';
+     } else {
+       // 如果没有保存的信息，尝试获取
+       try {
+         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+         if (tab && tab.url) {
+           url = tab.url;
+           title = tab.title || '';
+         } else {
+           this.showToast('无法获取当前页面链接');
+           return;
+         }
+       } catch (error) {
+         this.showToast('无法获取当前页面链接');
+         return;
+       }
+     }
 
-    // 统一处理各种连字符和空格格式
-    // 先将所有 &nbsp; 替换为普通空格
-    title = title.replace(/&nbsp;/gi, ' ');
+     // 统一处理各种连字符和空格格式
+     // 先将所有 &nbsp; 替换为普通空格
+     title = title.replace(/&nbsp;/gi, ' ');
 
-    // 处理前后带空格的连字符：&nbsp;-&nbsp;、 - 、&nbsp;-、-&nbsp;
-    title = title.replace(/\s+-\s+/g, ' - ');
+     // 处理前后带空格的连字符：&nbsp;-&nbsp;、 - 、&nbsp;-、-&nbsp;
+     title = title.replace(/\s+-\s+/g, ' - ');
 
-    // 去掉第一个 " - " 及其后面的所有内容
-    const dashIndex = title.indexOf(' - ');
-    if (dashIndex > -1) {
-      title = title.substring(0, dashIndex);
-    }
-    title = title.trim();
+     // 去掉第一个 " - " 及其后面的所有内容
+     const dashIndex = title.indexOf(' - ');
+     if (dashIndex > -1) {
+       title = title.substring(0, dashIndex);
+     }
+     title = title.trim();
 
-    // 创建新笔记
-    const newNote = {
-      id: Date.now().toString(),
-      title: title,
-      content: url,
-      tags: ['URL'],
-      createdAt: new Date().toISOString(),
-      pinned: false
-    };
+     // 创建新笔记，默认添加到当前分类
+     const newNote = {
+       id: Date.now().toString(),
+       title: title,
+       content: url,
+       tags: ['URL'],
+       category: this.currentCategory,
+       createdAt: new Date().toISOString(),
+       pinned: false
+     };
 
-    // 保存笔记
-    this.notes.unshift(newNote);
-    await this.saveNotes();
-    this.filterNotes();
-    this.renderTags();
-    this.renderCalendar();
-    this.showToast('已添加 URL 笔记');
-  }
+     // 保存笔记
+     this.notes.unshift(newNote);
+     await this.saveNotes();
+     this.filterNotes();
+     this.renderTags();
+     this.renderCalendar();
+     this.showToast('已添加 URL 笔记');
+   }
 
   async showSyncModal() {
     const modal = document.getElementById('syncModal');
@@ -1413,4 +1641,4 @@ class MemosPlugin {
 
 // 云同步模块将在HTML中通过script标签加载
 // Initialize app
-new MemosPlugin();
+window.memosPlugin = new MemosPlugin();
