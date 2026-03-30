@@ -957,52 +957,64 @@ async loadNotes() {
   }
 
    showNoteModal(noteIndex = null) {
-      this.editingIndex = noteIndex;
-      this.selectedTags = [];
-      this.availableTags = []; // 存储可用标签
-      const modal = document.getElementById('noteModal');
-      const title = document.getElementById('modalTitle');
-      const pinnedBanner = document.getElementById('pinnedBanner');
+       this.editingIndex = noteIndex;
+       this.selectedTags = [];
+       this.availableTags = []; // 存储可用标签
+       const modal = document.getElementById('noteModal');
+       const title = document.getElementById('modalTitle');
+       const pinnedBanner = document.getElementById('pinnedBanner');
 
-      if (noteIndex !== null) {
-        title.textContent = '编辑笔记';
-        const note = this.notes[noteIndex];
-        document.getElementById('noteTitle').value = note.title;
-        document.getElementById('noteContent').value = note.content;
-        this.selectedTags = [...note.tags];
-        // 恢复笔记原有颜色
-        this.applyColorToEditor(note.color || 'white');
-        // 编辑笔记时显示或隐藏置顶横幅
-        if (pinnedBanner) {
-          pinnedBanner.style.display = note.pinned ? 'block' : 'none';
-        }
-    } else {
-      title.textContent = '新建笔记';
-      document.getElementById('noteTitle').value = '';
-      document.getElementById('noteContent').value = '';
-      // 新建笔记时隐藏置顶横幅
-      if (pinnedBanner) {
-        pinnedBanner.style.display = 'none';
-      }
-      // 设置新建笔记的默认颜色为白色
-      this.currentColor = 'white';
-    }
+       if (noteIndex !== null) {
+         title.textContent = '编辑笔记';
+         const note = this.notes[noteIndex];
+         document.getElementById('noteTitle').value = note.title;
+         document.getElementById('noteContent').value = note.content;
+         this.selectedTags = [...note.tags];
+         // 恢复笔记原有颜色
+         this.applyColorToEditor(note.color || 'white');
+         // 编辑笔记时显示或隐藏置顶横幅
+         if (pinnedBanner) {
+           pinnedBanner.style.display = note.pinned ? 'block' : 'none';
+         }
+     } else {
+       title.textContent = '新建笔记';
+       document.getElementById('noteTitle').value = '';
+       document.getElementById('noteContent').value = '';
+       // 新建笔记时隐藏置顶横幅
+       if (pinnedBanner) {
+         pinnedBanner.style.display = 'none';
+       }
+       // 设置新建笔记的默认颜色为白色
+       this.currentColor = 'white';
+     }
 
-      this.loadAvailableTags();
-      this.renderTagsWrapper();
-      this.bindTagInputEvents();
+       this.loadAvailableTags();
+       this.renderTagsWrapper();
+       this.bindTagInputEvents();
+       
+       // 如果是新建笔记，根据当前选中的分类加载对应标签
+       if (noteIndex === null) {
+         this.updateAvailableTagsForCurrentCategory();
+         this.renderTagsWrapper();
+       }
 
-      modal.style.display = 'block';
-    }
+       modal.style.display = 'block';
+     }
 
   hideNoteModal() {
     document.getElementById('noteModal').style.display = 'none';
   }
 
-  loadAvailableTags() {
-    // 从所有笔记中获取标签
-    this.availableTags = [...new Set(this.notes.flatMap(note => note.tags))];
-  }
+   loadAvailableTags() {
+     // 从所有笔记中获取标签
+     this.availableTags = [...new Set(this.notes.flatMap(note => note.tags))];
+   }
+
+   updateAvailableTagsForCurrentCategory() {
+     // 根据当前选中的分类获取标签
+     const currentCategoryNotes = this.notes.filter(note => note.category === this.currentCategory);
+     this.availableTags = [...new Set(currentCategoryNotes.flatMap(note => note.tags))];
+   }
 
    renderTagsWrapper() {
      const wrapper = document.getElementById('tagsWrapper');
