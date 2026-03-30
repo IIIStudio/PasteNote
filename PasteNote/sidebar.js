@@ -413,18 +413,23 @@ async loadNotes() {
     }
   }
 
-  async syncToCloud() {
-    const config = await this.getCloudConfig();
-    if (!config) return;
+   async syncToCloud() {
+     const config = await this.getCloudConfig();
+     if (!config) return;
 
-    if (typeof CloudSync === 'undefined') return;
+     if (typeof CloudSync === 'undefined') return;
 
-    try {
-      const sync = new CloudSync(config);
-      await sync.upload(this.notes);
-    } catch (err) {
-    }
-  }
+     try {
+       const sync = new CloudSync(config);
+       // 上传时同时保存笔记和分类数据
+       const dataToUpload = {
+         memos_notes: this.notes,
+         memos_categories: this.categories
+       };
+       await sync.upload(dataToUpload);
+     } catch (err) {
+     }
+   }
 
      bindEvents() {
        document.getElementById('searchInput').addEventListener('input', (e) => {
@@ -1273,62 +1278,82 @@ async loadNotes() {
     }
   }
 
-  async exportNotes() {
-    const result = await chrome.storage.local.get(['cos_enabled']);
-    const syncEnabled = result.cos_enabled === true;
-    if (syncEnabled) {
-      // 云端上传
-      this.uploadToCloud();
-    } else {
-      // 本地导出
-      const dataStr = JSON.stringify(this.notes, null, 2);
-      const blob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `PasteNote-${new Date().toISOString().split('T')[0]}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
-    }
-  }
+   async exportNotes() {
+     const result = await chrome.storage.local.get(['cos_enabled']);
+     const syncEnabled = result.cos_enabled === true;
+     if (syncEnabled) {
+       // 云端上传
+       this.uploadToCloud();
+     } else {
+       // 本地导出 - 同时导出笔记和分类数据
+       const dataToExport = {
+         memos_notes: this.notes,
+         memos_categories: this.categories
+       };
+       const dataStr = JSON.stringify(dataToExport, null, 2);
+       const blob = new Blob([dataStr], { type: 'application/json' });
+       const url = URL.createObjectURL(blob);
+       const link = document.createElement('a');
+       link.href = url;
+       link.download = `PasteNote-${new Date().toISOString().split('T')[0]}.json`;
+       link.click();
+       URL.revokeObjectURL(url);
+     }
+   }
 
-  async importNotes() {
-    const result = await chrome.storage.local.get(['cos_enabled']);
-    const syncEnabled = result.cos_enabled === true;
-    if (syncEnabled) {
-      // 云端下载
-      this.downloadFromCloud();
-    } else {
-      // 本地导入
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.json';
-      input.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-          try {
-            const text = await file.text();
-            const importedNotes = JSON.parse(text);
-            if (Array.isArray(importedNotes)) {
-              // 清空原有笔记，只保留导入的笔记
-              this.notes = importedNotes;
-              this.saveNotes();
-              this.filterNotes();
-              this.renderNotes();
-              this.renderTags();
-              this.renderCalendar();
-              alert('导入成功');
-            } else {
-              alert('无效的文件格式');
-            }
-          } catch (err) {
-            alert('导入失败: ' + err.message);
-          }
-        }
-      };
-      input.click();
-    }
-  }
+   async importNotes() {
+     const result = await chrome.storage.local.get(['cos_enabled']);
+     const syncEnabled = result.cos_enabled === true;
+     if (syncEnabled) {
+       // 云端下载
+       this.downloadFromCloud();
+     } else {
+       // 本地导入
+       const input = document.createElement('input');
+       input.type = 'file';
+       input.accept = '.json';
+       input.onchange = async (e) => {
+         const file = e.target.files[0];
+         if (file) {
+           try {
+             const text = await file.text();
+             const importedData = JSON.parse(text);
+             
+             // 检查数据是新的格式（包含笔记和分类）还是旧格式（只有笔记数组）
+             if (importedData.memos_notes && importedData.memos_categories) {
+               // 新格式：包含笔记和分类
+               this.notes = importedData.memos_notes || [];
+               this.categories = importedData.memos_categories || { "default": [] };
+             } else if (Array.isArray(importedData)) {
+               // 旧格式：只有笔记数组
+               this.notes = importedData;
+               this.categories = { "default": [] };
+               // 为旧数据添加分类属性
+               this.notes.forEach(note => {
+                 if (!note.category) {
+                   note.category = 'default';
+                 }
+               });
+             } else {
+               alert('无效的文件格式');
+               return;
+             }
+             
+             this.saveNotes();
+             this.filterNotes();
+             this.renderCategories(); // 添加分类刷新
+             this.renderNotes();
+             this.renderTags();
+             this.renderCalendar();
+             alert('导入成功');
+           } catch (err) {
+             alert('导入失败: ' + err.message);
+           }
+         }
+       };
+       input.click();
+     }
+   }
 
   showToast(message) {
     const toast = document.createElement('div');
@@ -1531,22 +1556,37 @@ async loadNotes() {
 
     try {
       const sync = new CloudSync(config);
-      sync.download().then(notes => {
-        if (notes) {
-          if (confirm('下载云端数据将覆盖本地数据，是否继续？')) {
-            this.notes = notes;
-            this.saveNotes();
-            this.filterNotes();
-            this.renderTags();
-            this.renderCalendar();
-            this.showToast('已从云端下载数据');
-          }
-        } else {
-          alert('云端暂无数据');
-        }
-      }).catch(err => {
-        alert('下载失败: ' + err.message);
-      });
+       sync.download().then(data => {
+         if (data) {
+           if (confirm('下载云端数据将覆盖本地数据，是否继续？')) {
+             // 检查数据是新的格式（包含笔记和分类）还是旧格式（只有笔记）
+             if (data.memos_notes && data.memos_categories) {
+               this.notes = data.memos_notes || [];
+               this.categories = data.memos_categories || { "default": [] };
+             } else {
+               // 旧格式，只有笔记数据
+               this.notes = data || [];
+               this.categories = { "default": [] };
+               // 为旧数据添加分类属性
+               this.notes.forEach(note => {
+                 if (!note.category) {
+                   note.category = 'default';
+                 }
+               });
+             }
+             this.saveNotes();
+             this.filterNotes();
+             this.renderCategories(); // 添加分类刷新
+             this.renderTags();
+             this.renderCalendar();
+             this.showToast('已从云端下载数据');
+           }
+         } else {
+           alert('云端暂无数据');
+         }
+       }).catch(err => {
+         alert('下载失败: ' + err.message);
+       });
     } catch (err) {
       alert('初始化同步失败: ' + err.message);
     }
