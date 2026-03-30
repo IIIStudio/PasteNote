@@ -23,19 +23,37 @@
        margin-bottom: 8px;
        display: flex;
        align-items: center;
-       flex-wrap: wrap;
+       flex-wrap: nowrap;
+       gap: 8px;
      }
 
      .tags-label {
        margin-right: 8px;
        white-space: nowrap;
+       flex-shrink: 0;
      }
 
      .tags-list {
        display: flex;
-       flex-wrap: wrap;
+       flex-wrap: nowrap;
        align-items: center;
        flex: 1;
+       gap: 4px;
+       overflow-x: auto;
+       overflow-y: hidden;
+       cursor: grab;
+       user-select: none;
+       -webkit-user-select: none;
+       scrollbar-width: none;
+       -ms-overflow-style: none;
+     }
+
+     .tags-list::-webkit-scrollbar {
+       display: none;
+     }
+
+     .tags-list:active {
+       cursor: grabbing;
      }
 
     .category-btn {
@@ -130,10 +148,19 @@
       font-size: 8px;
     }
 
-    /* 侧边栏笔记列表自适应高度 */
-    .notes-list {
-      max-height: none !important;
-      overflow-y: auto !important;
+     /* 侧边栏笔记列表自适应高度 */
+     .notes-list {
+       max-height: none !important;
+       overflow-y: auto !important;
+     }
+
+    /* 标签筛选区域样式 - 添加滑动效果 */
+    .tags-filter {
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      flex-wrap: nowrap;
+      gap: 8px;
     }
 
     /* 模态框在侧边栏中的样式调整 */

@@ -531,8 +531,9 @@ async loadNotes() {
       this.exportNotes();
     });
 
-    // 标签列表鼠标拖动功能
+    // 标签列表和分类列表鼠标拖动功能
     this.setupTagsListDrag();
+    this.setupCategoriesListDrag();
   }
 
   setupTagsListDrag() {
@@ -566,6 +567,44 @@ async loadNotes() {
       const x = e.pageX - tagsList.offsetLeft;
       const walk = (x - startX) * 2;
       tagsList.scrollLeft = scrollLeft - walk;
+    });
+  }
+
+  setupCategoriesListDrag() {
+    const categoriesList = document.getElementById('categoriesContainer');
+    if (!categoriesList) return;
+
+    let isDown = false;
+    let startX;
+    let scrollLeft;
+
+    categoriesList.addEventListener('mousedown', (e) => {
+      // 如果点击的是删除按钮或添加按钮，不触发滑动
+      if (e.target.closest('.delete-category') || e.target.closest('#addCategoryBtn')) {
+        return;
+      }
+      isDown = true;
+      categoriesList.classList.add('active');
+      startX = e.pageX - categoriesList.offsetLeft;
+      scrollLeft = categoriesList.scrollLeft;
+    });
+
+    categoriesList.addEventListener('mouseleave', () => {
+      isDown = false;
+      categoriesList.classList.remove('active');
+    });
+
+    categoriesList.addEventListener('mouseup', () => {
+      isDown = false;
+      categoriesList.classList.remove('active');
+    });
+
+    categoriesList.addEventListener('mousemove', (e) => {
+      if (!isDown) return;
+      e.preventDefault();
+      const x = e.pageX - categoriesList.offsetLeft;
+      const walk = (x - startX) * 2;
+      categoriesList.scrollLeft = scrollLeft - walk;
     });
   }
 
