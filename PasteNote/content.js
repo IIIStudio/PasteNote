@@ -2,6 +2,7 @@
 class PasteNoteModal {
    constructor() {
      this.modal = null;
+     this.shadowRoot = null; // Shadow DOM 根节点
      this.notes = [];
      this.filteredNotes = [];
      this.categories = { "default": [] }; // 分类数据结构
@@ -28,6 +29,11 @@ class PasteNoteModal {
     return el.tagName === 'TEXTAREA' ||
       (el.tagName === 'INPUT' && ['text', 'search', 'email', 'url'].includes(el.type)) ||
       el.isContentEditable;
+  }
+
+  // 从 Shadow DOM 中获取元素
+  $(id) {
+    return this.shadowRoot ? this.shadowRoot.getElementById(id) : null;
   }
 
   async findTargetInput() {
@@ -109,79 +115,95 @@ class PasteNoteModal {
     document.removeEventListener('keydown', this.keyboardHandler);
   }
 
-   createModal() {
-     // 检查样式是否已存在，避免重复添加
-     if (!document.getElementById('pastenote-modal-styles')) {
-       const style = document.createElement('style');
-       style.id = 'pastenote-modal-styles';
-       style.textContent = `
-         #pastenote-notes-content::-webkit-scrollbar {
-           width: 6px;
-         }
-         #pastenote-notes-content::-webkit-scrollbar-track {
-           background: #f0f0f0;
-           border-radius: 3px;
-         }
-         #pastenote-notes-content::-webkit-scrollbar-thumb {
-           background: #999;
-           border-radius: 3px;
-         }
-         #pastenote-notes-content::-webkit-scrollbar-thumb:hover {
-           background: #666;
-         }
-         #pastenote-tags-box.hide-scrollbar::-webkit-scrollbar {
-           display: none;
-         }
-         #pastenote-tags-box {
-           scrollbar-width: none;
-           -ms-overflow-style: none;
-         }
-         #pastenote-categories-box {
-           scrollbar-width: none;
-           -ms-overflow-style: none;
-         }
-         .category-label {
-           font-size: 12px;
-           color: #666;
-           margin-right: 8px;
-           white-space: nowrap;
-           font-weight: 500;
-         }
-       `;
-       document.head.appendChild(style);
-     }
+  createModal() {
+    // 创建 Shadow DOM 宿主元素
+    const host = document.createElement('div');
+    host.id = 'pastenote-modal-host';
+
+    // 创建 Shadow DOM，隔离外部样式
+    this.shadowRoot = host.attachShadow({ mode: 'open' });
+
+    // 在 Shadow DOM 内部创建样式（不再注入到 document.head）
+    const style = document.createElement('style');
+    style.textContent = `
+      :host {
+        all: initial;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+      #pastenote-modal-wrapper {
+        display: flex;
+        flex-direction: column;
+      }
+      #pastenote-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 2147483646;
+      }
+      #pastenote-modal-container {
+        position: fixed;
+        top: 100px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #fff;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        max-width: 500px;
+        width: 90%;
+        max-height: 80vh;
+        display: flex;
+        flex-direction: column;
+        overflow: visible;
+        z-index: 2147483647;
+      }
+      #pastenote-notes-content::-webkit-scrollbar {
+        width: 6px;
+      }
+      #pastenote-notes-content::-webkit-scrollbar-track {
+        background: #f0f0f0;
+        border-radius: 3px;
+      }
+      #pastenote-notes-content::-webkit-scrollbar-thumb {
+        background: #999;
+        border-radius: 3px;
+      }
+      #pastenote-notes-content::-webkit-scrollbar-thumb:hover {
+        background: #666;
+      }
+      #pastenote-tags-box.hide-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      #pastenote-tags-box {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+      #pastenote-categories-box {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+      .category-label {
+        font-size: 12px;
+        color: #666;
+        margin-right: 8px;
+        white-space: nowrap;
+        font-weight: 500;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+    `;
+    this.shadowRoot.appendChild(style);
 
     // 创建全屏遮罩
     const overlay = document.createElement('div');
     overlay.id = 'pastenote-modal-overlay';
-    overlay.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.5);
-      z-index: 2147483646;
-    `;
 
     // 创建容器
     const container = document.createElement('div');
     container.id = 'pastenote-modal-container';
-    container.style.cssText = `
-      position: fixed;
-      top: 100px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #fff;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      max-width: 500px;
-      width: 90%;
-      max-height: 80vh;
-      display: flex;
-      flex-direction: column;
-      overflow: visible;
-      z-index: 2147483647;
-    `;
 
     // 创建头部
     const header = document.createElement('div');
@@ -278,11 +300,12 @@ class PasteNoteModal {
      container.appendChild(tagsBox);
      container.appendChild(content);
 
-    // 将遮罩和容器组合
+    // 将遮罩和容器组合到 wrapper 中，wrapper 放入 Shadow DOM
     const wrapper = document.createElement('div');
     wrapper.id = 'pastenote-modal-wrapper';
     wrapper.appendChild(overlay);
     wrapper.appendChild(container);
+    this.shadowRoot.appendChild(wrapper);
 
      // 绑定事件
      container.querySelector('#pastenote-close-btn').addEventListener('click', () => this.hide());
@@ -298,7 +321,7 @@ class PasteNoteModal {
      // 设置标签区域拖动效果
      this.setupTagsListDrag(tagsBox);
 
-    return wrapper;
+    return host;
   }
 
    setupTagsListDrag(tagsBox) {
@@ -337,9 +360,9 @@ class PasteNoteModal {
      });
    }
 
-   renderCategories() {
-     const categoriesBox = document.getElementById('pastenote-categories-box');
-     if (!categoriesBox) return;
+  renderCategories() {
+    const categoriesBox = this.$('pastenote-categories-box');
+    if (!categoriesBox) return;
 
      // 收集所有分类
      const allCategories = Object.keys(this.categories);
@@ -377,14 +400,14 @@ class PasteNoteModal {
        this.currentPage = 1;
        this.renderedCount = 0;
        this.selectedTag = null;
-       this.filterNotes(document.getElementById('pastenote-search').value);
-       this.renderCategories();
-       this.renderTags();
-     });
-     categoriesBox.appendChild(allCategory);
+      this.filterNotes(this.$('pastenote-search').value);
+      this.renderCategories();
+      this.renderTags();
+    });
+    categoriesBox.appendChild(allCategory);
 
-     // 添加"默认"分类
-     const defaultCategory = document.createElement('span');
+    // 添加"默认"分类
+    const defaultCategory = document.createElement('span');
      defaultCategory.style.cssText = `
        padding: 1px 4px;
        border: 1px solid #000;
@@ -401,14 +424,14 @@ class PasteNoteModal {
        this.currentPage = 1;
        this.renderedCount = 0;
        this.selectedTag = null;
-       this.filterNotes(document.getElementById('pastenote-search').value);
-       this.renderCategories();
-       this.renderTags();
-     });
-     categoriesBox.appendChild(defaultCategory);
+      this.filterNotes(this.$('pastenote-search').value);
+      this.renderCategories();
+      this.renderTags();
+    });
+    categoriesBox.appendChild(defaultCategory);
 
-     // 添加其他分类
-     allCategories.forEach(category => {
+    // 添加其他分类
+    allCategories.forEach(category => {
        if (category !== 'default') {
          const categoryElement = document.createElement('span');
          categoryElement.style.cssText = `
@@ -427,11 +450,11 @@ class PasteNoteModal {
            this.currentPage = 1;
            this.renderedCount = 0;
            this.selectedTag = null;
-           this.filterNotes(document.getElementById('pastenote-search').value);
-           this.renderCategories();
-           this.renderTags();
-         });
-         categoriesBox.appendChild(categoryElement);
+      this.filterNotes(this.$('pastenote-search').value);
+      this.renderCategories();
+      this.renderTags();
+    });
+    categoriesBox.appendChild(categoryElement);
        }
      });
    }
@@ -512,9 +535,9 @@ class PasteNoteModal {
     return colorMap[color] || colorMap['white'];
   }
 
-   renderTags() {
-     const tagsBox = document.getElementById('pastenote-tags-box');
-     if (!tagsBox) return;
+  renderTags() {
+    const tagsBox = this.$('pastenote-tags-box');
+    if (!tagsBox) return;
 
      // 获取当前分类下的笔记
      let currentCategoryNotes = this.notes;
@@ -562,13 +585,13 @@ class PasteNoteModal {
        this.selectedTag = null;
        this.currentPage = 1;
        this.renderedCount = 0;
-       this.filterNotes(document.getElementById('pastenote-search').value);
-       this.renderTags();
-     });
-     tagsBox.appendChild(allTag);
+      this.filterNotes(this.$('pastenote-search').value);
+      this.renderTags();
+    });
+    tagsBox.appendChild(allTag);
 
-     // 添加其他标签
-     allTags.forEach(tag => {
+    // 添加其他标签
+    allTags.forEach(tag => {
        const tagElement = document.createElement('span');
        tagElement.style.cssText = `
          padding: 1px 4px;
@@ -585,11 +608,11 @@ class PasteNoteModal {
          this.selectedTag = this.selectedTag === tag ? null : tag;
          this.currentPage = 1;
          this.renderedCount = 0;
-         this.filterNotes(document.getElementById('pastenote-search').value);
-         this.renderTags();
+      this.filterNotes(this.$('pastenote-search').value);
+      this.renderTags();
+    });
+    tagsBox.appendChild(tagElement);
        });
-       tagsBox.appendChild(tagElement);
-     });
    }
 
   async insertNoteContent(content) {
@@ -691,9 +714,9 @@ class PasteNoteModal {
     element.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
-   renderNotes() {
-     const content = document.getElementById('pastenote-notes-content');
-     if (!content) return;
+  renderNotes() {
+    const content = this.$('pastenote-notes-content');
+    if (!content) return;
 
      // 如果是第一次加载或重新渲染，清空容器
      if (this.currentPage === 1) {
@@ -741,7 +764,7 @@ class PasteNoteModal {
 
     // 如果没有更多笔记，移除加载提示
     if (startIndex >= this.filteredNotes.length) {
-      const loadingIndicator = document.getElementById('pastenote-loading');
+      const loadingIndicator = this.$('pastenote-loading');
       if (loadingIndicator) {
         loadingIndicator.textContent = '已加载全部笔记';
         loadingIndicator.style.display = 'block';
@@ -920,7 +943,7 @@ class PasteNoteModal {
   }
 
    filterNotes(keyword) {
-       const content = document.getElementById('pastenote-notes-content');
+       const content = this.$('pastenote-notes-content');
        if (!content) return;
 
        // 根据选中的分类过滤
@@ -987,11 +1010,11 @@ class PasteNoteModal {
   }
 
   updateLoadingIndicator() {
-    const content = document.getElementById('pastenote-notes-content');
+    const content = this.$('pastenote-notes-content');
     if (!content) return;
 
     // 创建或更新加载提示
-    let loadingIndicator = document.getElementById('pastenote-loading');
+    let loadingIndicator = this.$('pastenote-loading');
 
     if (this.renderedCount < this.filteredNotes.length) {
       if (!loadingIndicator) {
@@ -1017,7 +1040,7 @@ class PasteNoteModal {
   }
 
   bindScrollEvent() {
-    const content = document.getElementById('pastenote-notes-content');
+    const content = this.$('pastenote-notes-content');
     if (!content) {
       return;
     }
@@ -1057,7 +1080,7 @@ class PasteNoteModal {
 
     this.isLoading = true;
 
-    const loadingIndicator = document.getElementById('pastenote-loading');
+    const loadingIndicator = this.$('pastenote-loading');
     if (loadingIndicator) {
       loadingIndicator.textContent = '加载中...';
       loadingIndicator.style.display = 'block';
@@ -1078,8 +1101,10 @@ class PasteNoteModal {
   }
 
   showToast(message) {
+    if (!this.shadowRoot) return;
+
     // 移除现有的 toast
-    const existingToast = document.getElementById('pastenote-toast');
+    const existingToast = this.$('pastenote-toast');
     if (existingToast) {
       existingToast.remove();
     }
@@ -1099,7 +1124,7 @@ class PasteNoteModal {
     `;
     toast.textContent = message;
 
-    document.body.appendChild(toast);
+    this.shadowRoot.appendChild(toast);
 
     setTimeout(() => {
       toast.style.opacity = '0';
