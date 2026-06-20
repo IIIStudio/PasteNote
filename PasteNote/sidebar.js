@@ -701,14 +701,17 @@ async loadNotes() {
         <div class="note-time">${createTime}</div>
         <div class="note-actions">
           <div class="color-picker-container" data-note-id="${note.id}">
-            <button class="color-btn small ${note.color === 'white' ? 'active' : ''}" data-color="white" style="background: white; border: 1px solid #ccc;"></button>
-            <button class="color-btn small" data-color="ffe66e" style="background: #ffe66e;"></button>
-            <button class="color-btn small" data-color="a1ef9b" style="background: #a1ef9b;"></button>
-            <button class="color-btn small" data-color="ffafdf" style="background: #ffafdf;"></button>
-            <button class="color-btn small" data-color="d7afff" style="background: #d7afff;"></button>
-            <button class="color-btn small" data-color="9edfff" style="background: #9edfff;"></button>
-            <button class="color-btn small" data-color="e0e0e0" style="background: #e0e0e0;"></button>
-            <button class="color-btn small" data-color="767676" style="background: #767676;"></button>
+            <button class="color-picker-toggle" style="background: ${note.color === 'white' ? '#ffffff' : '#' + note.color}; ${note.color === 'white' ? 'border: 1px solid #ccc;' : ''}"></button>
+            <div class="color-picker-dropdown">
+              <button class="color-btn small ${note.color === 'white' ? 'active' : ''}" data-color="white" style="background: white; border: 1px solid #ccc;"></button>
+              <button class="color-btn small" data-color="ffe66e" style="background: #ffe66e;"></button>
+              <button class="color-btn small" data-color="a1ef9b" style="background: #a1ef9b;"></button>
+              <button class="color-btn small" data-color="ffafdf" style="background: #ffafdf;"></button>
+              <button class="color-btn small" data-color="d7afff" style="background: #d7afff;"></button>
+              <button class="color-btn small" data-color="9edfff" style="background: #9edfff;"></button>
+              <button class="color-btn small" data-color="e0e0e0" style="background: #e0e0e0;"></button>
+              <button class="color-btn small" data-color="767676" style="background: #767676;"></button>
+            </div>
           </div>
           <button class="note-pin-btn ${note.pinned ? 'pinned' : ''}" data-note-id="${note.id}" title="置顶">📌</button>
           <button class="note-edit-btn" data-note-id="${note.id}" title="编辑">✎</button>
@@ -718,8 +721,8 @@ async loadNotes() {
 
       // 单击复制笔记内容
       div.addEventListener('click', (e) => {
-        // 如果点击的是编辑、删除或置顶按钮，不触发复制
-        if (e.target.classList.contains('note-edit-btn') || e.target.classList.contains('note-delete-btn') || e.target.classList.contains('note-pin-btn')) {
+        // 如果点击的是编辑、删除、置顶按钮或颜色选择器，不触发复制
+        if (e.target.classList.contains('note-edit-btn') || e.target.classList.contains('note-delete-btn') || e.target.classList.contains('note-pin-btn') || e.target.closest('.color-picker-container')) {
           return;
         }
         // 检查是否有 url 标签（不区分大小写）
@@ -735,19 +738,47 @@ async loadNotes() {
         }
       });
 
-      // 颜色按钮点击事件
+      // 颜色选择器：点击 toggle 按钮展开/折叠
       const colorPicker = div.querySelector('.color-picker-container');
-      colorPicker.addEventListener('click', (e) => {
+      const toggleBtn = colorPicker.querySelector('.color-picker-toggle');
+      const dropdown = colorPicker.querySelector('.color-picker-dropdown');
+      
+      toggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // 切换展开/折叠
+        colorPicker.classList.toggle('expanded');
+      });
+      
+      // 选择颜色
+      dropdown.addEventListener('click', (e) => {
         e.stopPropagation();
         const colorBtn = e.target.closest('.color-btn.small');
         if (colorBtn) {
           const color = colorBtn.dataset.color;
           this.changeNoteColor(note.id, color);
           
-          // 更新按钮激活状态
-          colorPicker.querySelectorAll('.color-btn.small').forEach(btn => {
+          // 更新 toggle 按钮的颜色
+          toggleBtn.style.background = color === 'white' ? '#ffffff' : '#' + color;
+          if (color === 'white') {
+            toggleBtn.style.border = '1px solid #ccc';
+          } else {
+            toggleBtn.style.border = 'none';
+          }
+          
+          // 更新激活状态
+          dropdown.querySelectorAll('.color-btn.small').forEach(btn => {
             btn.classList.toggle('active', btn === colorBtn);
           });
+          
+          // 折叠回去
+          colorPicker.classList.remove('expanded');
+        }
+      });
+      
+      // 点击外部区域折叠颜色选择器
+      document.addEventListener('click', (e) => {
+        if (!colorPicker.contains(e.target)) {
+          colorPicker.classList.remove('expanded');
         }
       });
 

@@ -483,6 +483,45 @@ h1 {
   display: flex;
   gap: 2px;
   margin-right: 2px;
+  position: relative;
+}
+
+/* 颜色选择器触发按钮（折叠状态：只显示当前颜色） */
+.color-picker-toggle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.color-picker-toggle:hover {
+  transform: scale(1.1);
+}
+
+/* 展开的颜色选项列表，默认隐藏 */
+.color-picker-dropdown {
+  display: none;
+  gap: 2px;
+  position: absolute;
+  top: 0;
+  right: 100%;
+  margin-right: 4px;
+  background: #fff;
+  padding: 2px;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  z-index: 20;
+  white-space: nowrap;
+}
+
+.color-picker-container.expanded .color-picker-dropdown {
+  display: flex;
 }
 
 .color-btn.small {
