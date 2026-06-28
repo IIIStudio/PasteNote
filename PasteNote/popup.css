@@ -341,7 +341,6 @@ h1 {
 .note-item.pinned .note-tag { border-color: rgba(255, 255, 255, 0.5); }
 
 .note-item.pinned .note-time { color: rgba(255, 255, 255, 0.6); }
-.note-item.pinned .note-category { color: rgba(255, 255, 255, 0.6); }
 
 .note-item.pinned:hover {
   background: #1a1a1a;
@@ -559,6 +558,10 @@ h1 {
   top: 4px;
   right: 4px;
   z-index: 1;
+}
+
+.note-item.pinned .note-category {
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .note-item:hover .note-category {
