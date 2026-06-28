@@ -540,6 +540,19 @@ async loadNotes() {
       this.exportNotes();
     });
 
+    // 图片上传按钮
+    document.getElementById('uploadImageBtn').addEventListener('click', () => {
+      document.getElementById('imageFileInput').click();
+    });
+
+    document.getElementById('imageFileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        this.uploadImage(file);
+      }
+      e.target.value = '';
+    });
+
     // 标签列表和分类列表鼠标拖动功能
     this.setupTagsListDrag();
     this.setupCategoriesListDrag();
@@ -699,10 +712,18 @@ async loadNotes() {
         titleHtml = `<div class="note-title">${note.title}</div>`;
       }
 
+      let imageHtml = '';
+      let imageBtnHtml = '';
+      if (note.imageUrl && note.imageUrl.trim()) {
+        imageHtml = `<div class="note-image-preview"><img src="${note.imageUrl}" alt="" onerror="this.style.display='none'"></div>`;
+        imageBtnHtml = `<button class="note-image-btn" data-note-id="${note.id}" title="显示图片">🖼</button>`;
+      }
+
       const createTime = new Date(note.createdAt).toLocaleString('zh-CN');
 
       div.innerHTML = `
         ${titleHtml}
+        ${imageHtml}
         <div class="note-preview">${note.content.substring(0, 50)}${note.content.length > 50 ? '...' : ''}</div>
         <div class="note-tags">
           ${note.tags.map(tag => `<span class="note-tag">${tag}</span>`).join('')}
@@ -725,14 +746,24 @@ async loadNotes() {
           </div>
           <button class="note-pin-btn ${note.pinned ? 'pinned' : ''}" data-note-id="${note.id}" title="置顶">📌</button>
           <button class="note-edit-btn" data-note-id="${note.id}" title="编辑">✎</button>
+          ${imageBtnHtml}
           <button class="note-delete-btn" data-note-id="${note.id}" title="删除">×</button>
         </div>
       `;
 
+      // 点击图标按钮在新标签页查看全图
+      if (note.imageUrl && note.imageUrl.trim()) {
+        const imgBtn = div.querySelector('.note-image-btn');
+        imgBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          window.open(note.imageUrl, '_blank');
+        });
+      }
+
       // 单击复制笔记内容
       div.addEventListener('click', (e) => {
-        // 如果点击的是编辑、删除、置顶按钮或颜色选择器，不触发复制
-        if (e.target.classList.contains('note-edit-btn') || e.target.classList.contains('note-delete-btn') || e.target.classList.contains('note-pin-btn') || e.target.closest('.color-picker-container')) {
+        // 如果点击的是编辑、删除、置顶、图片按钮或颜色选择器，不触发复制
+        if (e.target.classList.contains('note-edit-btn') || e.target.classList.contains('note-delete-btn') || e.target.classList.contains('note-pin-btn') || e.target.classList.contains('note-image-btn') || e.target.closest('.color-picker-container')) {
           return;
         }
         // 检查是否有 url 标签（不区分大小写）
@@ -1064,30 +1095,32 @@ async loadNotes() {
        // 渲染分类选择器
        this.renderCategorySelect();
 
-       if (noteIndex !== null) {
-         title.textContent = '编辑笔记';
-         const note = this.notes[noteIndex];
-         document.getElementById('noteTitle').value = note.title;
-         document.getElementById('noteContent').value = note.content;
-         this.selectedTags = [...note.tags];
-         // 恢复笔记原有颜色
-         this.applyColorToEditor(note.color || 'white');
-         // 编辑笔记时显示或隐藏置顶横幅
-         if (pinnedBanner) {
-           pinnedBanner.style.display = note.pinned ? 'block' : 'none';
-         }
-         // 设置分类选择器为笔记的分类
-         if (categorySelect) {
-           categorySelect.value = note.category || 'default';
-         }
-         // 编辑笔记时，根据笔记的分类加载对应的标签
-         const noteCategory = note.category || 'default';
-         const currentCategoryNotes = this.notes.filter(n => n.category === noteCategory);
-         this.availableTags = [...new Set(currentCategoryNotes.flatMap(n => n.tags))];
-     } else {
-       title.textContent = '新建笔记';
-       document.getElementById('noteTitle').value = '';
-       document.getElementById('noteContent').value = '';
+      if (noteIndex !== null) {
+        title.textContent = '编辑笔记';
+        const note = this.notes[noteIndex];
+        document.getElementById('noteTitle').value = note.title;
+        document.getElementById('noteContent').value = note.content;
+        document.getElementById('noteImageUrl').value = note.imageUrl || '';
+        this.selectedTags = [...note.tags];
+        // 恢复笔记原有颜色
+        this.applyColorToEditor(note.color || 'white');
+        // 编辑笔记时显示或隐藏置顶横幅
+        if (pinnedBanner) {
+          pinnedBanner.style.display = note.pinned ? 'block' : 'none';
+        }
+        // 设置分类选择器为笔记的分类
+        if (categorySelect) {
+          categorySelect.value = note.category || 'default';
+        }
+        // 编辑笔记时，根据笔记的分类加载对应的标签
+        const noteCategory = note.category || 'default';
+        const currentCategoryNotes = this.notes.filter(n => n.category === noteCategory);
+        this.availableTags = [...new Set(currentCategoryNotes.flatMap(n => n.tags))];
+    } else {
+      title.textContent = '新建笔记';
+      document.getElementById('noteTitle').value = '';
+      document.getElementById('noteContent').value = '';
+      document.getElementById('noteImageUrl').value = '';
        // 新建笔记时隐藏置顶横幅
        if (pinnedBanner) {
          pinnedBanner.style.display = 'none';
@@ -1434,37 +1467,40 @@ async loadNotes() {
       }
     }
 
-    saveNote() {
-       const title = document.getElementById('noteTitle').value.trim();
-       const content = document.getElementById('noteContent').value.trim();
-       const tags = [...this.selectedTags];
-       const category = document.getElementById('noteCategorySelect').value || 'default';
+   saveNote() {
+      const title = document.getElementById('noteTitle').value.trim();
+      const content = document.getElementById('noteContent').value.trim();
+      const imageUrl = document.getElementById('noteImageUrl').value.trim();
+      const tags = [...this.selectedTags];
+      const category = document.getElementById('noteCategorySelect').value || 'default';
 
-       if (this.editingIndex !== null) {
-         // 编辑现有笔记，保留原有的 createdAt
-         const existingNote = this.notes[this.editingIndex];
-         this.notes[this.editingIndex] = {
-           ...existingNote,
-           title,
-           content,
-           tags,
-           category,
-           updatedAt: new Date().toISOString()
-         };
-       } else {
-         // 新建笔记，使用选择的分类
-         const note = {
-           id: Date.now(),
-           title,
-           content,
-           tags,
-           color: this.currentColor,
-           category: category,
-           createdAt: new Date().toISOString(),
-           updatedAt: new Date().toISOString()
-         };
-         this.notes.unshift(note);
-       }
+      if (this.editingIndex !== null) {
+        // 编辑现有笔记，保留原有的 createdAt
+        const existingNote = this.notes[this.editingIndex];
+        this.notes[this.editingIndex] = {
+          ...existingNote,
+          title,
+          content,
+          imageUrl,
+          tags,
+          category,
+          updatedAt: new Date().toISOString()
+        };
+      } else {
+        // 新建笔记，使用选择的分类
+        const note = {
+          id: Date.now(),
+          title,
+          content,
+          imageUrl,
+          tags,
+          color: this.currentColor,
+          category: category,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        this.notes.unshift(note);
+      }
 
        this.saveNotes();
        this.filterNotes();
@@ -1641,8 +1677,60 @@ async loadNotes() {
      this.filterNotes();
      this.renderTags();
      this.renderCalendar();
-     this.showToast('已添加 URL 笔记');
-   }
+    this.showToast('已添加 URL 笔记');
+  }
+
+  async uploadImage(file) {
+    const uploadBtn = document.getElementById('uploadImageBtn');
+    const imageUrlInput = document.getElementById('noteImageUrl');
+
+    // 验证文件类型
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      this.showToast('仅支持 JPEG、PNG、GIF、WebP 格式');
+      return;
+    }
+
+    // 验证文件大小 (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      this.showToast('图片不能超过 5MB');
+      return;
+    }
+
+    uploadBtn.textContent = '...';
+    uploadBtn.disabled = true;
+
+    try {
+      const response = await fetch(
+        `https://p.sda1.dev/api/v1/upload_external_noform?filename=${encodeURIComponent(file.name)}`,
+        {
+          method: 'POST',
+          body: file,
+          headers: {
+            'Content-Type': 'application/octet-stream'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`上传失败: ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (result.data && result.data.url) {
+        imageUrlInput.value = result.data.url;
+        this.showToast('图片上传成功');
+      } else {
+        throw new Error('未获取到图片链接');
+      }
+    } catch (err) {
+      console.error('Image upload error:', err);
+      this.showToast('上传失败: ' + err.message);
+    } finally {
+      uploadBtn.textContent = '上传';
+      uploadBtn.disabled = false;
+    }
+  }
 
   async showSyncModal() {
     const modal = document.getElementById('syncModal');

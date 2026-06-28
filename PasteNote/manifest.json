@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PasteNote",
-  "version": "1.2.5",
+  "version": "1.3",
   "description": "自托管笔记和知识管理浏览器插件",
   "permissions": [
     "storage",
@@ -14,7 +14,8 @@
     "https://cos.ap-beijing.myqcloud.com/*",
     "https://cos.ap-shanghai.myqcloud.com/*",
     "https://cos.ap-guangzhou.myqcloud.com/*",
-    "https://cos.ap-chengdu.myqcloud.com/*"
+    "https://cos.ap-chengdu.myqcloud.com/*",
+    "https://p.sda1.dev/*"
   ],
   "action": {
     "default_title": "PasteNote",

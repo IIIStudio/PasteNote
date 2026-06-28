@@ -302,6 +302,11 @@
       <h2 id="modalTitle">新建笔记</h2>
       <input type="text" id="noteTitle" placeholder="标题">
       <textarea id="noteContent" placeholder="内容..."></textarea>
+      <div class="image-url-section">
+        <input type="text" id="noteImageUrl" placeholder="图片链接（自动填充或手动输入）">
+        <button id="uploadImageBtn" class="btn btn-small" title="上传图片到图床">上传</button>
+        <input type="file" id="imageFileInput" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;">
+      </div>
       <div class="category-select-section">
         <label class="category-select-label">分类:</label>
         <select id="noteCategorySelect" class="category-select"></select>
