@@ -609,6 +609,36 @@ h1 {
   margin-bottom: 12px;
 }
 
+.category-select-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.category-select-label {
+  font-size: 11px;
+  color: #333;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.category-select {
+  font-size: 11px;
+  padding: 3px 6px;
+  border: 1px solid #000;
+  background: #fff;
+  color: #000;
+  cursor: pointer;
+  outline: none;
+  flex: 1;
+  max-width: 200px;
+}
+
+.category-select:focus {
+  border-color: #000;
+}
+
 .tags-wrapper {
   display: flex;
   flex-wrap: wrap;

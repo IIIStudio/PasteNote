@@ -840,6 +840,19 @@ async loadNotes() {
     });
   }
 
+  renderCategorySelect() {
+    const select = document.getElementById('noteCategorySelect');
+    if (!select) return;
+    select.innerHTML = '';
+    const categories = Object.keys(this.categories);
+    categories.forEach(cat => {
+      const option = document.createElement('option');
+      option.value = cat;
+      option.textContent = cat === 'default' ? '默认' : cat;
+      select.appendChild(option);
+    });
+  }
+
   toggleTagFilter(tag) {
     const idx = this.currentFilter.tags.indexOf(tag);
     if (idx > -1) {
@@ -1035,6 +1048,10 @@ async loadNotes() {
        const modal = document.getElementById('noteModal');
        const title = document.getElementById('modalTitle');
        const pinnedBanner = document.getElementById('pinnedBanner');
+       const categorySelect = document.getElementById('noteCategorySelect');
+
+       // 渲染分类选择器
+       this.renderCategorySelect();
 
        if (noteIndex !== null) {
          title.textContent = '编辑笔记';
@@ -1047,6 +1064,10 @@ async loadNotes() {
          // 编辑笔记时显示或隐藏置顶横幅
          if (pinnedBanner) {
            pinnedBanner.style.display = note.pinned ? 'block' : 'none';
+         }
+         // 设置分类选择器为笔记的分类
+         if (categorySelect) {
+           categorySelect.value = note.category || 'default';
          }
          // 编辑笔记时，根据笔记的分类加载对应的标签
          const noteCategory = note.category || 'default';
@@ -1062,6 +1083,10 @@ async loadNotes() {
        }
        // 设置新建笔记的默认颜色为白色
        this.currentColor = 'white';
+       // 设置分类选择器为当前分类
+       if (categorySelect) {
+         categorySelect.value = this.currentCategory;
+       }
        // 新建笔记时，根据当前选中的分类加载对应标签
        this.updateAvailableTagsForCurrentCategory();
      }
@@ -1295,6 +1320,7 @@ async loadNotes() {
        const title = document.getElementById('noteTitle').value.trim();
        const content = document.getElementById('noteContent').value.trim();
        const tags = [...this.selectedTags];
+       const category = document.getElementById('noteCategorySelect').value || 'default';
 
        if (this.editingIndex !== null) {
          // 编辑现有笔记，保留原有的 createdAt
@@ -1304,17 +1330,18 @@ async loadNotes() {
            title,
            content,
            tags,
+           category,
            updatedAt: new Date().toISOString()
          };
        } else {
-         // 新建笔记，默认添加到当前分类
+         // 新建笔记，使用选择的分类
          const note = {
            id: Date.now(),
            title,
            content,
            tags,
            color: this.currentColor,
-           category: this.currentCategory,
+           category: category,
            createdAt: new Date().toISOString(),
            updatedAt: new Date().toISOString()
          };
