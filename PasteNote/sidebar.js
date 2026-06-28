@@ -24,6 +24,8 @@ class MemosPlugin {
      await this.getCurrentTabInfo();
      this.bindEvents();
     this.bindCategoryModalEvents();
+    this.bindCategoryContextMenu();
+    this.bindRenameCategoryModal();
     this.bindConfirmModalEvents();
     this.bindAlertModalEvents();
      // 在 init 中调用 filterNotes 而不是 renderNotes，确保正确的排序
@@ -273,18 +275,12 @@ async loadNotes() {
            btn.textContent = category;
            btn.dataset.category = category;
 
-           // 添加删除按钮（不显示在默认分类和添加按钮上）
-           const deleteBtn = document.createElement('span');
-           deleteBtn.className = 'delete-category';
-           deleteBtn.textContent = '×';
-           deleteBtn.addEventListener('click', async (e) => {
+           // 右键菜单
+           btn.addEventListener('contextmenu', (e) => {
+             e.preventDefault();
              e.stopPropagation();
-             console.log('删除按钮被点击，分类:', category);
-             if (await this.showConfirm('删除分类', `确定要删除分类"${category}"吗？`)) {
-               await this.deleteCategory(category);
-             }
+             this.showCategoryContextMenu(e, category);
            });
-           btn.appendChild(deleteBtn);
 
            // 直接追加到容器末尾
            container.appendChild(btn);
@@ -485,22 +481,8 @@ async loadNotes() {
          clearBtn.classList.remove('visible');
        });
 
-      // 分类容器事件委托 - 处理分类切换和删除
-      document.getElementById('categoriesContainer').addEventListener('click', async (e) => {
-        // 优先处理删除按钮
-        const deleteBtn = e.target.closest('.delete-category');
-        if (deleteBtn) {
-          e.stopPropagation();
-          e.preventDefault();
-          const categoryBtn = deleteBtn.parentElement;
-          const categoryName = categoryBtn.dataset.category;
-          console.log('分类删除按钮被点击:', categoryName);
-          if (await this.showConfirm('删除分类', `确定要删除分类"${categoryName}"吗？`)) {
-            await this.deleteCategory(categoryName);
-          }
-          return;
-        }
-        
+      // 分类容器事件委托 - 处理分类切换
+      document.getElementById('categoriesContainer').addEventListener('click', (e) => {
         // 处理分类切换
         const categoryBtn = e.target.closest('button[data-category]');
         if (categoryBtn && categoryBtn.id !== 'addCategoryBtn') {
@@ -644,8 +626,8 @@ async loadNotes() {
     let scrollLeft;
 
     categoriesList.addEventListener('mousedown', (e) => {
-      // 如果点击的是删除按钮或添加按钮，不触发滑动
-      if (e.target.closest('.delete-category') || e.target.closest('#addCategoryBtn')) {
+      // 如果点击的是添加按钮或右键，不触发滑动
+      if (e.target.closest('#addCategoryBtn') || e.button === 2) {
         return;
       }
       isDown = true;
@@ -1328,6 +1310,120 @@ async loadNotes() {
 
   hideCategoryModal() {
     document.getElementById('categoryModal').style.display = 'none';
+  }
+
+  bindCategoryContextMenu() {
+    this.contextMenuCategory = null;
+
+    // 点击任意处关闭菜单
+    document.addEventListener('click', () => {
+      this.hideCategoryContextMenu();
+    });
+
+    // 右键菜单项
+    document.getElementById('renameCategoryItem').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const cat = this.contextMenuCategory;
+      this.hideCategoryContextMenu();
+      if (cat) this.showRenameCategoryModal(cat);
+    });
+
+    document.getElementById('deleteCategoryItem').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const cat = this.contextMenuCategory;
+      this.hideCategoryContextMenu();
+      if (cat && await this.showConfirm('删除分类', `确定要删除分类"${cat}"吗？`)) {
+        await this.deleteCategory(cat);
+      }
+    });
+  }
+
+  showCategoryContextMenu(e, category) {
+    const menu = document.getElementById('categoryContextMenu');
+    menu.style.display = 'block';
+    menu.style.left = e.clientX + 'px';
+    menu.style.top = e.clientY + 'px';
+    this.contextMenuCategory = category;
+  }
+
+  hideCategoryContextMenu() {
+    const menu = document.getElementById('categoryContextMenu');
+    if (menu) menu.style.display = 'none';
+    this.contextMenuCategory = null;
+  }
+
+  bindRenameCategoryModal() {
+    document.getElementById('closeRenameCategory').addEventListener('click', () => {
+      this.hideRenameCategoryModal();
+    });
+    document.getElementById('cancelRenameCategory').addEventListener('click', () => {
+      this.hideRenameCategoryModal();
+    });
+    document.getElementById('confirmRenameCategory').addEventListener('click', () => {
+      this.confirmRenameCategory();
+    });
+    document.getElementById('renameCategoryInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        this.confirmRenameCategory();
+      }
+    });
+  }
+
+  showRenameCategoryModal(category) {
+    this.renameTargetCategory = category;
+    document.getElementById('renameCategoryInput').value = category;
+    document.getElementById('renameCategoryModal').style.display = 'block';
+    document.getElementById('renameCategoryInput').focus();
+    document.getElementById('renameCategoryInput').select();
+  }
+
+  hideRenameCategoryModal() {
+    document.getElementById('renameCategoryModal').style.display = 'none';
+    this.renameTargetCategory = null;
+  }
+
+  confirmRenameCategory() {
+    const newName = document.getElementById('renameCategoryInput').value.trim();
+    if (!newName) {
+      this.showToast('分类名称不能为空');
+      return;
+    }
+    if (newName === this.renameTargetCategory) {
+      this.hideRenameCategoryModal();
+      return;
+    }
+    if (this.categories[newName]) {
+      this.showToast('分类名称已存在');
+      return;
+    }
+    this.renameCategory(this.renameTargetCategory, newName);
+    this.hideRenameCategoryModal();
+  }
+
+  renameCategory(oldName, newName) {
+    if (!this.categories[oldName]) return;
+
+    // 更新分类键名
+    this.categories[newName] = this.categories[oldName];
+    delete this.categories[oldName];
+
+    // 更新该分类下所有笔记的 category 字段
+    this.notes.forEach(note => {
+      if (note.category === oldName) {
+        note.category = newName;
+      }
+    });
+
+    // 更新当前分类
+    if (this.currentCategory === oldName) {
+      this.currentCategory = newName;
+    }
+
+    this.saveNotes();
+    this.renderCategories();
+    this.filterNotes();
+    this.showToast('分类已重命名');
   }
 
   bindConfirmModalEvents() {
