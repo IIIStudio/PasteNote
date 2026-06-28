@@ -428,9 +428,20 @@ async loadNotes() {
    }
 
      bindEvents() {
-       document.getElementById('searchInput').addEventListener('input', (e) => {
+       const searchInput = document.getElementById('searchInput');
+       const clearBtn = document.getElementById('clearSearchBtn');
+       
+       searchInput.addEventListener('input', (e) => {
          this.currentFilter.search = e.target.value;
          this.filterNotes();
+         clearBtn.classList.toggle('visible', e.target.value.length > 0);
+       });
+
+       clearBtn.addEventListener('click', () => {
+         searchInput.value = '';
+         this.currentFilter.search = '';
+         this.filterNotes();
+         clearBtn.classList.remove('visible');
        });
 
       // 分类容器事件委托 - 处理分类切换和删除
@@ -1007,6 +1018,7 @@ async loadNotes() {
           // 点击绿块：显示当天的笔记
           this.currentFilter.search = dateStr;
           document.getElementById('searchInput').value = dateStr;
+          document.getElementById('clearSearchBtn').classList.add('visible');
           this.filterNotes();
           this.renderNotes();
           this.showToast(`已显示 ${dateStr} 的笔记`);
@@ -1015,6 +1027,7 @@ async loadNotes() {
           if (this.currentFilter.search && this.currentFilter.search.match(/^\d{4}-\d{2}-\d{2}$/)) {
             this.currentFilter.search = '';
             document.getElementById('searchInput').value = '';
+            document.getElementById('clearSearchBtn').classList.remove('visible');
             this.filterNotes();
             this.renderNotes();
             this.showToast('已取消日期筛选');

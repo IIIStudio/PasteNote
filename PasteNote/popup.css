@@ -83,11 +83,44 @@ h1 {
   margin-bottom: 12px;
 }
 
+.search-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
 #searchInput {
   width: 100%;
-  padding: 8px;
+  padding: 8px 30px 8px 8px;
   border: 1px solid #000;
   font-size: 14px;
+}
+
+.search-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: none;
+  color: #999;
+  font-size: 16px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+}
+
+.search-clear:hover {
+  color: #000;
+}
+
+.search-clear.visible {
+  display: flex;
 }
 
 .tags-filter {
