@@ -596,6 +596,7 @@ h1 {
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
+  padding-right: 16px;
 }
 
 .add-tag-btn {
@@ -617,7 +618,7 @@ h1 {
   border: 1px solid #000;
   font-size: 11px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, padding-right 0.2s;
   background: #fff;
   color: #000;
   position: relative;
@@ -625,6 +626,7 @@ h1 {
 
 #tagsWrapper .tag:hover {
   background: #f5f5f5;
+  padding-right: 26px;
 }
 
 #tagsWrapper .tag.selected {
@@ -637,18 +639,10 @@ h1 {
 }
 
 /* 弹窗内的标签悬停效果 */
-#tagsWrapper .tag {
-  transition: all 0.2s;
-}
-
-#tagsWrapper .tag:hover {
-  padding-right: 24px;
-}
-
 #tagsWrapper .tag .tag-delete {
   position: absolute;
   top: 0;
-  right: 0;
+  right: 4px;
   width: 20px;
   height: 100%;
   font-size: 14px;
