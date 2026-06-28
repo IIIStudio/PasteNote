@@ -759,7 +759,7 @@ async loadNotes() {
       let imageBtnHtml = '';
       if (note.imageUrl && note.imageUrl.trim()) {
         imageHtml = `<div class="note-image-preview"><img src="${note.imageUrl}" alt="" onerror="this.style.display='none'"></div>`;
-        imageBtnHtml = `<button class="note-image-btn" data-note-id="${note.id}" title="显示图片">🖼</button>`;
+        imageBtnHtml = `<button class="note-image-btn" data-note-id="${note.id}" title="显示图片"><span class="image-icon-wrap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><g class="loader-spin"><circle cx="12" cy="12" r="10"/><path d="M22 12a1 1 0 0 1-10 0 1 1 0 0 0-10 0"/><path d="M7 20.7a1 1 0 1 1 5-8.7 1 1 0 1 0 5-8.6"/><path d="M7 3.3a1 1 0 1 1 5 8.6 1 1 0 1 0 5 8.6"/></g></svg></span></button>`;
       }
 
       const createTime = new Date(note.createdAt).toLocaleString('zh-CN');
@@ -787,10 +787,10 @@ async loadNotes() {
               <button class="color-btn small" data-color="767676" style="background: #767676;"></button>
             </div>
           </div>
-          <button class="note-pin-btn ${note.pinned ? 'pinned' : ''}" data-note-id="${note.id}" title="置顶">📌</button>
-          <button class="note-edit-btn" data-note-id="${note.id}" title="编辑">✎</button>
+          <button class="note-pin-btn ${note.pinned ? 'pinned' : ''}" data-note-id="${note.id}" title="${note.pinned ? '取消置顶' : '置顶'}"><span class="pin-icon-wrap">${note.pinned ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M15 9.34V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H7.89"/><path class="pin-off-slash" d="m2 2 20 20" stroke-dasharray="29"/><path d="M9 9v1.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h11"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M9 10.8c0 .8-.4 1.5-1.1 1.8l-1.8.9c-.7.3-1.1 1-1.1 1.8v.8c0 .6.4 1 1 1h12c.6 0 1-.4 1-1v-.8c0-.8-.4-1.5-1.1-1.8l-1.8-.9c-.7-.3-1.1-1-1.1-1.8v-3.8c0-.6.4-1 1-1 1.1 0 2-.9 2-2s-.9-2-2-2h-8c-1.1 0-2 .9-2 2s.9 2 2 2 1 .4 1 1v3.8Z"/></svg>'}</span></button>
+          <button class="note-edit-btn" data-note-id="${note.id}" title="编辑"><span class="edit-icon-wrap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m11 10 3 3"/><path d="M6.5 21A3.5 3.5 0 1 0 3 17.5a2.62 2.62 0 0 1-.708 1.792A1 1 0 0 0 3 21z"/><path d="M9.969 17.031 21.378 5.624a1 1 0 0 0-3.002-3.002L6.967 14.031"/></svg></span></button>
           ${imageBtnHtml}
-          <button class="note-delete-btn" data-note-id="${note.id}" title="删除">×</button>
+          <button class="note-delete-btn" data-note-id="${note.id}" title="删除"><span class="delete-icon-wrap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><g class="trash-lid"><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M3 6h18"/></g><path class="trash-body" d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><g class="trash-lines"><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></g></svg></span></button>
         </div>
       `;
 

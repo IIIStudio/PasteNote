@@ -456,13 +456,32 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  transition: background 0.3s ease, color 0.3s ease, transform 0.3s ease;
+  flex-shrink: 0;
 }
 
 .note-edit-btn:hover {
   background: #000;
   color: #fff;
   transform: scale(1.1);
+}
+
+.note-edit-btn:hover .edit-icon-wrap {
+  animation: brush-wave 0.6s ease-in-out;
+  transform-origin: top right;
+}
+
+.edit-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@keyframes brush-wave {
+  0% { transform: rotate(0deg); }
+  33% { transform: rotate(-6deg); }
+  66% { transform: rotate(6deg); }
+  100% { transform: rotate(0deg); }
 }
 
 .note-delete-btn:hover {
@@ -483,13 +502,39 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  transition: background 0.3s ease, color 0.3s ease, transform 0.3s ease;
+  flex-shrink: 0;
 }
 
 .note-delete-btn:hover {
   background: #000;
   color: #fff;
   transform: scale(1.1);
+}
+
+.note-delete-btn:hover .trash-lid {
+  animation: trash-lid-up 0.3s ease-in-out forwards;
+}
+
+.note-delete-btn:hover .trash-body,
+.note-delete-btn:hover .trash-lines {
+  animation: trash-body-down 0.3s ease-in-out forwards;
+}
+
+.delete-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@keyframes trash-lid-up {
+  from { transform: translateY(0); }
+  to { transform: translateY(-2px); }
+}
+
+@keyframes trash-body-down {
+  from { transform: translateY(0); }
+  to { transform: translateY(2px); }
 }
 
 .note-pin-btn {
@@ -504,13 +549,18 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  transition: background 0.3s ease, color 0.3s ease, transform 0.3s ease;
+  flex-shrink: 0;
 }
 
 .note-pin-btn:hover {
   background: #000;
   color: #fff;
   transform: scale(1.1);
+}
+
+.note-pin-btn:hover .pin-icon-wrap {
+  animation: pin-wiggle 0.5s ease-in-out;
 }
 
 .note-pin-btn.pinned {
@@ -521,6 +571,44 @@ h1 {
 .note-pin-btn.pinned:hover {
   background: #000;
   color: #fff;
+}
+
+.note-pin-btn.pinned:hover .pin-icon-wrap {
+  animation: pin-off-shake 0.6s ease-in-out;
+}
+
+/* PinOff 斜线绘制动画 */
+.note-pin-btn.pinned .pin-off-slash {
+  stroke-dashoffset: 29;
+  animation: pin-off-draw 0.6s ease-in-out forwards;
+}
+
+.pin-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@keyframes pin-wiggle {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(15deg); }
+  50% { transform: rotate(-10deg); }
+  75% { transform: rotate(5deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes pin-off-shake {
+  0% { transform: translateX(0); }
+  20% { transform: translateX(-2px); }
+  40% { transform: translateX(2px); }
+  60% { transform: translateX(-2px); }
+  80% { transform: translateX(2px); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes pin-off-draw {
+  from { stroke-dashoffset: 29; }
+  to { stroke-dashoffset: 0; }
 }
 
 .color-picker-container {
@@ -914,11 +1002,28 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  transition: background 0.3s ease, color 0.3s ease, transform 0.3s ease;
+  flex-shrink: 0;
 }
 
 .note-image-btn:hover {
   background: #000;
   color: #fff;
   transform: scale(1.1);
+}
+
+.note-image-btn:hover .loader-spin {
+  animation: loader-rotate 1.5s linear infinite;
+  transform-origin: center;
+}
+
+.image-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@keyframes loader-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
