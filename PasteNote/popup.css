@@ -328,6 +328,7 @@ h1 {
 .note-item.gray .note-preview { color: rgba(255, 255, 255, 0.8); }
 .note-item.gray .note-tag { border-color: rgba(255, 255, 255, 0.5); }
 .note-item.gray .note-time { color: rgba(255, 255, 255, 0.6); }
+.note-item.gray .note-category { color: rgba(255, 255, 255, 0.6); }
 
 .note-item.pinned {
   background: #000;
@@ -340,6 +341,7 @@ h1 {
 .note-item.pinned .note-tag { border-color: rgba(255, 255, 255, 0.5); }
 
 .note-item.pinned .note-time { color: rgba(255, 255, 255, 0.6); }
+.note-item.pinned .note-category { color: rgba(255, 255, 255, 0.6); }
 
 .note-item.pinned:hover {
   background: #1a1a1a;
@@ -548,6 +550,19 @@ h1 {
   position: absolute;
   bottom: 1px;
   right: 2px;
+}
+
+.note-category {
+  font-size: 10px;
+  color: #666;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 1;
+}
+
+.note-item:hover .note-category {
+  opacity: 0;
 }
 
 .modal {

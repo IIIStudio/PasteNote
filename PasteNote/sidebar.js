@@ -610,8 +610,8 @@ async loadNotes() {
 
   filterNotes() {
     this.filteredNotes = this.notes.filter(note => {
-      // 分类过滤
-      if (note.category !== this.currentCategory) {
+      // 分类过滤：有搜索词时搜索全部，无搜索词时只显示当前分类
+      if (!this.currentFilter.search && note.category !== this.currentCategory) {
         return false;
       }
       
@@ -698,6 +698,7 @@ async loadNotes() {
         <div class="note-tags">
           ${note.tags.map(tag => `<span class="note-tag">${tag}</span>`).join('')}
         </div>
+        <div class="note-category">${note.category && note.category !== 'default' ? note.category : ''}</div>
         <div class="note-time">${createTime}</div>
         <div class="note-actions">
           <div class="color-picker-container" data-note-id="${note.id}">
