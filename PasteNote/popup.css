@@ -612,13 +612,13 @@ h1 {
 .tags-wrapper {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 3px;
   align-items: center;
-  padding-right: 16px;
+  padding-right: 28px;
 }
 
 .add-tag-btn {
-  padding: 4px 10px;
+  padding: 2px 6px;
   border: 1px solid #000;
   background: #fff;
   color: #000;
@@ -632,9 +632,9 @@ h1 {
 }
 
 #tagsWrapper .tag {
-  padding: 4px 10px;
+  padding: 2px 6px;
   border: 1px solid #000;
-  font-size: 11px;
+  font-size: 10px;
   cursor: pointer;
   transition: background 0.2s, padding-right 0.2s;
   background: #fff;
@@ -644,7 +644,7 @@ h1 {
 
 #tagsWrapper .tag:hover {
   background: #f5f5f5;
-  padding-right: 26px;
+  padding-right: 18px;
 }
 
 #tagsWrapper .tag.selected {
@@ -660,10 +660,10 @@ h1 {
 #tagsWrapper .tag .tag-delete {
   position: absolute;
   top: 0;
-  right: 4px;
-  width: 20px;
+  right: 2px;
+  width: 14px;
   height: 100%;
-  font-size: 14px;
+  font-size: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
