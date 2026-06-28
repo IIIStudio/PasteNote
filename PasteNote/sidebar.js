@@ -36,6 +36,8 @@ class MemosPlugin {
      this.bindScrollEvent();
      // 保存当前分类到存储
      this.saveLastCategory();
+     // 加载并应用图片预览开关状态
+     await this.loadImageHoverState();
    }
 
 async loadNotes() {
@@ -132,6 +134,42 @@ async loadNotes() {
       await chrome.storage.local.set({ lastSelectedCategory: this.currentCategory });
     } catch (error) {
       console.log('保存分类失败:', error);
+    }
+  }
+
+  // 加载图片预览开关状态
+  async loadImageHoverState() {
+    try {
+      const result = await chrome.storage.local.get(['imageHoverEnabled']);
+      // 默认开启
+      const enabled = result.imageHoverEnabled !== undefined ? result.imageHoverEnabled : true;
+      this.imageHoverEnabled = enabled;
+      const toggle = document.getElementById('imageHoverToggle');
+      if (toggle) {
+        toggle.checked = enabled;
+      }
+      this.applyImageHoverState(enabled);
+    } catch (error) {
+      this.imageHoverEnabled = true;
+    }
+  }
+
+  // 切换图片预览开关
+  async toggleImageHover(enabled) {
+    this.imageHoverEnabled = enabled;
+    this.applyImageHoverState(enabled);
+    try {
+      await chrome.storage.local.set({ imageHoverEnabled: enabled });
+    } catch (error) {
+      console.log('保存图片预览状态失败:', error);
+    }
+  }
+
+  // 应用图片预览开关状态到 DOM
+  applyImageHoverState(enabled) {
+    const notesSection = document.querySelector('.notes-section');
+    if (notesSection) {
+      notesSection.classList.toggle('image-hover-disabled', !enabled);
     }
   }
 
@@ -551,6 +589,11 @@ async loadNotes() {
         this.uploadImage(file);
       }
       e.target.value = '';
+    });
+
+    // 图片预览开关
+    document.getElementById('imageHoverToggle').addEventListener('change', (e) => {
+      this.toggleImageHover(e.target.checked);
     });
 
     // 标签列表和分类列表鼠标拖动功能

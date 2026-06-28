@@ -329,6 +329,16 @@ h1 {
   margin-bottom: 12px;
 }
 
+.section-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-header-left h3 {
+  margin-bottom: 0;
+}
+
 .section-actions {
   display: flex;
   gap: 6px;
@@ -825,6 +835,61 @@ h1 {
 
 .note-item:hover .note-image-preview {
   display: block;
+}
+
+/* 图片预览开关关闭时，覆盖 hover 显示 */
+.image-hover-disabled .note-item:hover .note-image-preview {
+  display: none;
+}
+
+/* 图片预览开关样式 */
+.image-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.image-toggle input[type="checkbox"] {
+  display: none;
+}
+
+.toggle-slider {
+  position: relative;
+  width: 30px;
+  height: 16px;
+  background: #ccc;
+  border-radius: 8px;
+  transition: background 0.3s;
+  flex-shrink: 0;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.3s;
+}
+
+.image-toggle input:checked + .toggle-slider {
+  background: #000;
+}
+
+.image-toggle input:checked + .toggle-slider::before {
+  transform: translateX(14px);
+}
+
+.toggle-label {
+  font-size: 11px;
+  color: #666;
+  white-space: nowrap;
 }
 
 .note-image-preview img {
