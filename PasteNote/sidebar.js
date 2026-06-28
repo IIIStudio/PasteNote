@@ -709,7 +709,7 @@ async loadNotes() {
         <div class="note-tags">
           ${note.tags.map(tag => `<span class="note-tag">${tag}</span>`).join('')}
         </div>
-        <div class="note-category">${note.category && note.category !== 'default' ? note.category : ''}</div>
+        <div class="note-category">${note.category && note.category !== 'default' ? note.category : '默认'}</div>
         <div class="note-time">${createTime}</div>
         <div class="note-actions">
           <div class="color-picker-container" data-note-id="${note.id}">
