@@ -23,6 +23,9 @@ class MemosPlugin {
      await this.loadNotes();
      await this.getCurrentTabInfo();
      this.bindEvents();
+    this.bindCategoryModalEvents();
+    this.bindConfirmModalEvents();
+    this.bindAlertModalEvents();
      // 在 init 中调用 filterNotes 而不是 renderNotes，确保正确的排序
      this.filterNotes();
      this.renderCategories();
@@ -132,7 +135,7 @@ async loadNotes() {
     }
   }
 
-   deleteCategory(categoryName) {
+   async deleteCategory(categoryName) {
         console.log('deleteCategory called with:', categoryName);
         console.log('Current categories before delete:', JSON.stringify(this.categories));
         
@@ -151,7 +154,7 @@ async loadNotes() {
         if (this.categories[categoryName]) {
           const notesToDelete = this.notes.filter(note => note.category === categoryName);
           if (notesToDelete.length > 0) {
-            if (!confirm(`此分类下有 ${notesToDelete.length} 个笔记，删除分类将同时删除这些笔记。确定继续吗？`)) {
+            if (!await this.showConfirm('删除分类', `此分类下有 ${notesToDelete.length} 个笔记，删除分类将同时删除这些笔记。确定继续吗？`)) {
               return false;
             }
             // 从notes数组中删除这些笔记
@@ -236,11 +239,11 @@ async loadNotes() {
            const deleteBtn = document.createElement('span');
            deleteBtn.className = 'delete-category';
            deleteBtn.textContent = '×';
-           deleteBtn.addEventListener('click', (e) => {
+           deleteBtn.addEventListener('click', async (e) => {
              e.stopPropagation();
              console.log('删除按钮被点击，分类:', category);
-             if (confirm(`确定要删除分类"${category}"吗？`)) {
-               this.deleteCategory(category);
+             if (await this.showConfirm('删除分类', `确定要删除分类"${category}"吗？`)) {
+               await this.deleteCategory(category);
              }
            });
            btn.appendChild(deleteBtn);
@@ -445,7 +448,7 @@ async loadNotes() {
        });
 
       // 分类容器事件委托 - 处理分类切换和删除
-      document.getElementById('categoriesContainer').addEventListener('click', (e) => {
+      document.getElementById('categoriesContainer').addEventListener('click', async (e) => {
         // 优先处理删除按钮
         const deleteBtn = e.target.closest('.delete-category');
         if (deleteBtn) {
@@ -454,8 +457,8 @@ async loadNotes() {
           const categoryBtn = deleteBtn.parentElement;
           const categoryName = categoryBtn.dataset.category;
           console.log('分类删除按钮被点击:', categoryName);
-          if (confirm(`确定要删除分类"${categoryName}"吗？`)) {
-            this.deleteCategory(categoryName);
+          if (await this.showConfirm('删除分类', `确定要删除分类"${categoryName}"吗？`)) {
+            await this.deleteCategory(categoryName);
           }
           return;
         }
@@ -470,12 +473,7 @@ async loadNotes() {
 
      // 添加分类按钮事件
      document.getElementById('addCategoryBtn').addEventListener('click', () => {
-       const categoryName = prompt('请输入分类名称:');
-       if (categoryName && this.addCategory(categoryName)) {
-         this.showToast(`分类"${categoryName}"已添加`);
-       } else if (categoryName) {
-         this.showToast('分类已存在或名称无效');
-       }
+       this.showCategoryModal();
      });
 
      document.getElementById('addUrlNoteBtn').addEventListener('click', () => {
@@ -814,9 +812,9 @@ async loadNotes() {
 
       // 删除按钮点击事件
       const deleteBtn = div.querySelector('.note-delete-btn');
-      deleteBtn.addEventListener('click', (e) => {
+      deleteBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        if (confirm('确定删除此笔记？')) {
+        if (await this.showConfirm('删除笔记', '确定删除此笔记？')) {
           const actualIndex = this.notes.findIndex(n => n.id === note.id);
           this.notes.splice(actualIndex, 1);
           this.saveNotes();
@@ -1148,11 +1146,11 @@ async loadNotes() {
        deleteBtn.className = 'tag-delete';
        deleteBtn.textContent = '×';
        deleteBtn.title = '删除标签';
-       deleteBtn.addEventListener('click', (e) => {
+       deleteBtn.addEventListener('click', async (e) => {
          e.stopPropagation();
          e.preventDefault();
          console.log('标签删除按钮被点击:', tag);
-         this.deleteTag(tag);
+         await this.deleteTag(tag);
        });
        tagEl.appendChild(deleteBtn);
 
@@ -1220,17 +1218,124 @@ async loadNotes() {
     document.getElementById('tagModal').style.display = 'none';
   }
 
+  bindCategoryModalEvents() {
+    // 关闭按钮 - X 按钮
+    document.querySelector('#categoryModal .close').addEventListener('click', () => {
+      this.hideCategoryModal();
+    });
+
+    // 取消按钮
+    document.getElementById('cancelAddCategory').addEventListener('click', () => {
+      this.hideCategoryModal();
+    });
+
+    // 确认添加按钮
+    document.getElementById('confirmAddCategory').onclick = () => {
+      this.createNewCategory();
+    };
+
+    // 输入框回车
+    document.getElementById('newCategoryInput').onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        this.createNewCategory();
+      }
+    };
+  }
+
+  showCategoryModal() {
+    const modal = document.getElementById('categoryModal');
+    document.getElementById('newCategoryInput').value = '';
+    modal.style.display = 'block';
+    document.getElementById('newCategoryInput').focus();
+  }
+
+  hideCategoryModal() {
+    document.getElementById('categoryModal').style.display = 'none';
+  }
+
+  bindConfirmModalEvents() {
+    document.querySelector('#confirmModal .close').addEventListener('click', () => {
+      this.hideConfirmModal();
+      this._resolveConfirm(false);
+    });
+    document.getElementById('confirmNoBtn').addEventListener('click', () => {
+      this.hideConfirmModal();
+      this._resolveConfirm(false);
+    });
+    document.getElementById('confirmYesBtn').addEventListener('click', () => {
+      this.hideConfirmModal();
+      this._resolveConfirm(true);
+    });
+  }
+
+  showConfirm(title, message) {
+    return new Promise((resolve) => {
+      this._resolveConfirm = resolve;
+      document.getElementById('confirmModalTitle').textContent = title;
+      document.getElementById('confirmModalMessage').textContent = message;
+      document.getElementById('confirmModal').style.display = 'block';
+      document.getElementById('confirmYesBtn').focus();
+    });
+  }
+
+  hideConfirmModal() {
+    document.getElementById('confirmModal').style.display = 'none';
+  }
+
+  bindAlertModalEvents() {
+    document.querySelector('#alertModal .close').addEventListener('click', () => {
+      this.hideAlertModal();
+      this._resolveAlert();
+    });
+    document.getElementById('alertOkBtn').addEventListener('click', () => {
+      this.hideAlertModal();
+      this._resolveAlert();
+    });
+  }
+
+  showAlert(title, message) {
+    return new Promise((resolve) => {
+      this._resolveAlert = resolve;
+      document.getElementById('alertModalTitle').textContent = title;
+      document.getElementById('alertModalMessage').textContent = message;
+      document.getElementById('alertModal').style.display = 'block';
+      document.getElementById('alertOkBtn').focus();
+    });
+  }
+
+  hideAlertModal() {
+    document.getElementById('alertModal').style.display = 'none';
+  }
+
+  createNewCategory() {
+    const input = document.getElementById('newCategoryInput');
+    const categoryName = input.value.trim();
+
+    if (!categoryName) {
+      this.showToast('请输入分类名称');
+      return;
+    }
+
+    if (this.addCategory(categoryName)) {
+      this.showToast(`分类"${categoryName}"已添加`);
+      this.hideCategoryModal();
+    } else {
+      this.showToast('分类已存在或名称无效');
+    }
+  }
+
   createNewTag() {
     const input = document.getElementById('newTagInput');
     const tagName = input.value.trim();
 
     if (!tagName) {
-      alert('请输入标签名称');
+      this.showToast('请输入标签名称');
       return;
     }
 
     if (this.selectedTags.includes(tagName)) {
-      alert('该标签已被选中');
+      this.showToast('该标签已被选中');
       return;
     }
 
@@ -1268,14 +1373,14 @@ async loadNotes() {
     }
   }
 
-   deleteTag(tag) {
+   async deleteTag(tag) {
       console.log('deleteTag called with:', tag);
       console.log('Available tags before delete:', this.availableTags);
 
       // 统计有多少笔记包含这个标签
       const notesWithTag = this.notes.filter(note => note.tags.includes(tag));
 
-      if (confirm(`确定要删除标签"${tag}"吗？删除后将从所有笔记中移除此标签。`)) {
+      if (await this.showConfirm('删除标签', `确定要删除标签"${tag}"吗？删除后将从所有笔记中移除此标签。`)) {
         // 从所有笔记中移除此标签
         if (notesWithTag.length > 0) {
           this.notes.forEach(note => {
@@ -1373,8 +1478,8 @@ async loadNotes() {
     this.showNoteModal(actualIndex);
   }
 
-  deleteNote() {
-    if (this.editingIndex !== null && confirm('确定删除此笔记？')) {
+  async deleteNote() {
+    if (this.editingIndex !== null && await this.showConfirm('删除笔记', '确定删除此笔记？')) {
       this.notes.splice(this.editingIndex, 1);
       this.saveNotes();
       this.filterNotes();
@@ -1441,7 +1546,7 @@ async loadNotes() {
                  }
                });
              } else {
-               alert('无效的文件格式');
+               await this.showAlert('导入失败', '无效的文件格式');
                return;
              }
              
@@ -1451,9 +1556,9 @@ async loadNotes() {
              this.renderNotes();
              this.renderTags();
              this.renderCalendar();
-             alert('导入成功');
+             this.showToast('导入成功');
            } catch (err) {
-             alert('导入失败: ' + err.message);
+             await this.showAlert('导入失败', err.message);
            }
          }
        };
@@ -1583,22 +1688,22 @@ async loadNotes() {
      // 更严格的验证：如果启用云同步，所有字段都必须填写且不能为空
      if (enableCheckbox.checked) {
        if (!secretId) {
-         alert('启用云同步时必须填写 SecretId');
+         await this.showAlert('提示', '启用云同步时必须填写 SecretId');
          document.getElementById('syncSecretId').focus();
          return;
        }
        if (!secretKey) {
-         alert('启用云同步时必须填写 SecretKey');
+         await this.showAlert('提示', '启用云同步时必须填写 SecretKey');
          document.getElementById('syncSecretKey').focus();
          return;
        }
        if (!bucket) {
-         alert('启用云同步时必须填写存储桶名称');
+         await this.showAlert('提示', '启用云同步时必须填写存储桶名称');
          document.getElementById('syncBucket').focus();
          return;
        }
        if (!region) {
-         alert('启用云同步时必须填写地域');
+         await this.showAlert('提示', '启用云同步时必须填写地域');
          document.getElementById('syncRegion').focus();
          return;
        }
@@ -1651,20 +1756,20 @@ async loadNotes() {
   async downloadFromCloud() {
     const config = await this.getCloudConfig();
     if (!config) {
-      alert('请先启用并配置云同步');
+      this.showToast('请先启用并配置云同步');
       return;
     }
 
     if (typeof CloudSync === 'undefined') {
-      alert('云同步模块未加载');
+      this.showToast('云同步模块未加载');
       return;
     }
 
     try {
       const sync = new CloudSync(config);
-       sync.download().then(data => {
+       sync.download().then(async (data) => {
          if (data) {
-           if (confirm('下载云端数据将覆盖本地数据，是否继续？')) {
+           if (await this.showConfirm('下载确认', '下载云端数据将覆盖本地数据，是否继续？')) {
              // 检查数据是新的格式（包含笔记和分类）还是旧格式（只有笔记）
              if (data.memos_notes && data.memos_categories) {
                this.notes = data.memos_notes || [];
@@ -1688,54 +1793,58 @@ async loadNotes() {
              this.showToast('已从云端下载数据');
            }
          } else {
-           alert('云端暂无数据');
+           this.showToast('云端暂无数据');
          }
-       }).catch(err => {
-         alert('下载失败: ' + err.message);
+       }).catch(async (err) => {
+         await this.showAlert('下载失败', err.message);
        });
     } catch (err) {
-      alert('初始化同步失败: ' + err.message);
+      await this.showAlert('同步失败', err.message);
     }
   }
 
    async uploadToCloud() {
      const config = await this.getCloudConfig();
      if (!config) {
-       alert('请先启用并配置云同步');
+       this.showToast('请先启用并配置云同步');
        return;
      }
 
      // 详细检查配置参数
      console.log('Upload config:', config);
      if (!config.bucket) {
-       alert('配置错误：Bucket 参数为空，请重新配置云同步');
+       await this.showAlert('配置错误', 'Bucket 参数为空，请重新配置云同步');
        return;
      }
      if (!config.secretId) {
-       alert('配置错误：SecretId 参数为空，请重新配置云同步');
+       await this.showAlert('配置错误', 'SecretId 参数为空，请重新配置云同步');
        return;
      }
      if (!config.secretKey) {
-       alert('配置错误：SecretKey 参数为空，请重新配置云同步');
+       await this.showAlert('配置错误', 'SecretKey 参数为空，请重新配置云同步');
        return;
      }
      if (!config.region) {
-       alert('配置错误：Region 参数为空，请重新配置云同步');
+       await this.showAlert('配置错误', 'Region 参数为空，请重新配置云同步');
        return;
      }
 
      if (typeof CloudSync === 'undefined') {
-       alert('云同步模块未加载');
+       this.showToast('云同步模块未加载');
        return;
      }
 
-     try {
-       const sync = new CloudSync(config);
-       await sync.upload(this.notes);
-       this.showToast('已上传到云端');
+    try {
+      const sync = new CloudSync(config);
+      const dataToUpload = {
+        memos_notes: this.notes,
+        memos_categories: this.categories
+      };
+      await sync.upload(dataToUpload);
+      this.showToast('已上传到云端');
      } catch (err) {
        console.error('Upload error details:', err);
-       alert('上传失败: ' + err.message);
+       await this.showAlert('上传失败', err.message);
      }
    }
 

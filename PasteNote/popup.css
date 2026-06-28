@@ -765,6 +765,13 @@ h1 {
   font-size: 13px;
 }
 
+.confirm-message {
+  font-size: 13px;
+  margin-bottom: 16px;
+  line-height: 1.5;
+  color: #333;
+}
+
 #noteContent {
   width: 100%;
   height: 120px;

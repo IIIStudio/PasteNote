@@ -331,6 +331,44 @@
     </div>
   </div>
 
+  <!-- 添加分类弹窗 -->
+  <div id="categoryModal" class="modal">
+    <div class="modal-content tag-modal">
+      <span class="close">&times;</span>
+      <h2>添加新分类</h2>
+      <input type="text" id="newCategoryInput" placeholder="输入分类名称">
+      <div class="modal-actions">
+        <button id="confirmAddCategory" class="btn btn-primary">添加</button>
+        <button id="cancelAddCategory" class="btn">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 通用确认弹窗 -->
+  <div id="confirmModal" class="modal">
+    <div class="modal-content tag-modal">
+      <span class="close">&times;</span>
+      <h2 id="confirmModalTitle">确认操作</h2>
+      <p id="confirmModalMessage" class="confirm-message"></p>
+      <div class="modal-actions">
+        <button id="confirmYesBtn" class="btn btn-primary">确定</button>
+        <button id="confirmNoBtn" class="btn">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 通用提示弹窗 -->
+  <div id="alertModal" class="modal">
+    <div class="modal-content tag-modal">
+      <span class="close">&times;</span>
+      <h2 id="alertModalTitle">提示</h2>
+      <p id="alertModalMessage" class="confirm-message"></p>
+      <div class="modal-actions">
+        <button id="alertOkBtn" class="btn btn-primary">确定</button>
+      </div>
+    </div>
+  </div>
+
   <script src="libs/cos-js-sdk-v5.min.js"></script>
   <script src="cloudSync.js"></script>
   <script src="sidebar.js"></script>
