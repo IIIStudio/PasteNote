@@ -772,15 +772,26 @@ async loadNotes() {
           window.open(note.imageUrl, '_blank');
         });
 
-        // 图片浮层预览定位：图片右边缘对齐笔记右边缘，显示在笔记下方
+        // 图片浮层预览定位：图片右边缘对齐笔记右边缘，优先显示在下方，空间不足时显示在上方
         const previewEl = div.querySelector('.note-image-preview');
         div.addEventListener('mouseenter', () => {
           if (!this.imageHoverEnabled) return;
           const rect = div.getBoundingClientRect();
-          
+          const previewMaxHeight = 350; // 匹配 CSS .note-image-preview max-height
+
           previewEl.style.right = (window.innerWidth - rect.right - 7) + 'px';
-          previewEl.style.top = rect.bottom + 'px';
           previewEl.style.left = 'auto';
+
+          // 判断下方是否有足够空间显示图片预览
+          if (rect.bottom + previewMaxHeight > window.innerHeight) {
+            // 空间不足，显示在笔记项上方
+            previewEl.style.top = 'auto';
+            previewEl.style.bottom = (window.innerHeight - rect.top) + 'px';
+          } else {
+            // 空间足够，显示在笔记项下方
+            previewEl.style.top = rect.bottom + 'px';
+            previewEl.style.bottom = 'auto';
+          }
         });
       }
 
