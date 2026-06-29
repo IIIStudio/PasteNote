@@ -1851,7 +1851,9 @@ async loadNotes() {
 
       const result = await response.json();
       if (result.data && result.data.url) {
-        imageUrlInput.value = result.data.url;
+        // 去掉图片名称，只保留目录路径
+        const url = result.data.url;
+        imageUrlInput.value = url.substring(0, url.lastIndexOf('/') + 1);
         this.showToast('图片上传成功');
       } else {
         throw new Error('未获取到图片链接');
