@@ -720,8 +720,15 @@ async loadNotes() {
        // 都是置顶或都不是置顶时，按创建时间倒序（新的在前）
        return new Date(b.createdAt) - new Date(a.createdAt);
      });
+     // 记住之前已渲染的数量，避免编辑/分类变更后滚动位置丢失
+     const previousCount = this.renderedCount;
      this.currentPage = 1;
      this.renderNotes();
+     // 补齐之前已加载的所有页面
+     while (this.renderedCount < Math.min(previousCount, this.filteredNotes.length)) {
+       this.currentPage++;
+       this.renderNotes();
+     }
    }
 
   renderNotes() {
