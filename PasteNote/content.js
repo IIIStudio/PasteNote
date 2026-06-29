@@ -1002,7 +1002,29 @@ class PasteNoteModal {
 
       // 点击插入内容到输入框
       noteItem.addEventListener('click', () => {
-        this.insertNoteContent(note.content || '');
+        // 检查是否有 url 标签（不区分大小写）
+        const hasUrlTag = note.tags.some(tag => tag.toLowerCase() === 'url');
+        if (hasUrlTag) {
+          // 以换行为分界线：第一部分是URL，第二部分是prompt
+          const parts = note.content.split('\n\n');
+          const firstLine = parts[0].trim();
+          const prompt = parts.slice(1).join('\n\n').trim();
+
+          // 第一行必须是http开头才作为URL处理
+          if (firstLine && firstLine.startsWith('http')) {
+            window.open(firstLine, '_blank');
+            if (prompt) {
+              this.insertNoteContent(prompt);
+            } else {
+              this.hide();
+            }
+          } else {
+            // 第一行不是http开头，降级为普通插入
+            this.insertNoteContent(note.content || '');
+          }
+        } else {
+          this.insertNoteContent(note.content || '');
+        }
       });
 
       content.appendChild(noteItem);

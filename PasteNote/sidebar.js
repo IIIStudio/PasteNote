@@ -804,8 +804,17 @@ async loadNotes() {
         // 检查是否有 url 标签（不区分大小写）
         const hasUrlTag = note.tags.some(tag => tag.toLowerCase() === 'url');
         if (hasUrlTag) {
-          // 如果有 url 标签，跳转到链接（笔记内容）
-          window.open(note.content, '_blank');
+          // 以换行为分界线，第一行必须是http开头
+          const parts = note.content.split('\n\n');
+          const firstLine = parts[0].trim();
+          if (firstLine && firstLine.startsWith('http')) {
+            window.open(firstLine, '_blank');
+          } else {
+            // 第一行不是http开头，降级为普通复制
+            navigator.clipboard.writeText(note.content).then(() => {
+              this.showToast('已复制笔记内容');
+            });
+          }
         } else {
           // 否则复制笔记内容
           navigator.clipboard.writeText(note.content).then(() => {
