@@ -15,11 +15,19 @@ class PasteNoteModal {
      this.scrollHandler = null;
      this.lastFocusedElement = null;
      this.insertTargetElement = null; // 专门记录插入目标
+    this.imageHoverEnabled = true; // 图片预览开关
 
      // 监听焦点变化
      document.addEventListener('focusin', (e) => {
        if (this.isEditableElement(e.target)) {
          this.lastFocusedElement = e.target;
+       }
+     });
+
+     // 监听图片预览开关变化（与侧边栏同步）
+     chrome.storage.onChanged.addListener((changes, namespace) => {
+       if (namespace === 'local' && changes.imageHoverEnabled) {
+         this.imageHoverEnabled = changes.imageHoverEnabled.newValue;
        }
      });
    }
@@ -88,6 +96,17 @@ class PasteNoteModal {
      // 在打开模态框时记录插入目标
      this.insertTargetElement = await this.findTargetInput();
 
+     // 清理旧的图片预览浮层
+     this.cleanupImagePreviews();
+
+     // 加载图片预览开关状态
+     try {
+       const toggleResult = await chrome.storage.local.get(['imageHoverEnabled']);
+       this.imageHoverEnabled = toggleResult.imageHoverEnabled !== undefined ? toggleResult.imageHoverEnabled : true;
+     } catch (e) {
+       this.imageHoverEnabled = true;
+     }
+
      if (!this.modal) {
        this.modal = this.createModal();
        document.body.appendChild(this.modal);
@@ -112,7 +131,14 @@ class PasteNoteModal {
     if (this.modal) {
       this.modal.style.display = 'none';
     }
+    // 清理图片预览浮层
+    this.cleanupImagePreviews();
     document.removeEventListener('keydown', this.keyboardHandler);
+  }
+
+  cleanupImagePreviews() {
+    // 清除 document.body 上所有图片预览浮层
+    document.querySelectorAll('.pastenote-img-preview').forEach(el => el.remove());
   }
 
   createModal() {
@@ -928,6 +954,51 @@ class PasteNoteModal {
             });
           }
         }
+
+      // 有图片链接时，添加图片预览浮层（全部用 inline style）
+      if (note.imageUrl && note.imageUrl.trim()) {
+        const previewDiv = document.createElement('div');
+        previewDiv.className = 'pastenote-img-preview';
+        previewDiv.style.cssText = 'position:fixed;z-index:2147483648;pointer-events:none;opacity:0;transition:opacity 0.2s;min-width:100px;min-height:60px;max-width:380px;max-height:300px;overflow:hidden;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.15);padding:4px;display:block;';
+        const img = document.createElement('img');
+        img.src = note.imageUrl;
+        img.style.cssText = 'width:auto;max-width:100%;max-height:290px;object-fit:contain;border-radius:4px;display:block;';
+        img.onerror = function() {
+          img.style.display = 'none';
+        };
+        previewDiv.appendChild(img);
+        document.body.appendChild(previewDiv);
+
+        noteItem.addEventListener('mouseenter', () => {
+          if (!this.imageHoverEnabled) return;
+          const rect = noteItem.getBoundingClientRect();
+          const previewWidth = 380;
+          const previewHeight = 300;
+
+          let left = rect.right + 8;
+          let top = rect.bottom - previewHeight;
+          if (top < 10) top = rect.top;
+          if (left + previewWidth > window.innerWidth - 10) {
+            left = rect.left - previewWidth - 8;
+          }
+          if (left < 10) {
+            left = rect.left;
+            top = rect.bottom + 6;
+          }
+          if (top + previewHeight > window.innerHeight - 10) {
+            top = window.innerHeight - previewHeight - 10;
+          }
+          if (top < 10) top = 10;
+
+          previewDiv.style.left = left + 'px';
+          previewDiv.style.top = top + 'px';
+          previewDiv.style.opacity = '1';
+        });
+
+        noteItem.addEventListener('mouseleave', () => {
+          previewDiv.style.opacity = '0';
+        });
+      }
 
       // 点击插入内容到输入框
       noteItem.addEventListener('click', () => {

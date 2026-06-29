@@ -126,7 +126,6 @@ async loadNotes() {
         this.currentCategory = result.lastSelectedCategory;
       }
     } catch (error) {
-      console.log('恢复分类失败:', error);
     }
   }
 
@@ -135,7 +134,6 @@ async loadNotes() {
     try {
       await chrome.storage.local.set({ lastSelectedCategory: this.currentCategory });
     } catch (error) {
-      console.log('保存分类失败:', error);
     }
   }
 
@@ -163,7 +161,6 @@ async loadNotes() {
     try {
       await chrome.storage.local.set({ imageHoverEnabled: enabled });
     } catch (error) {
-      console.log('保存图片预览状态失败:', error);
     }
   }
 
@@ -176,9 +173,6 @@ async loadNotes() {
   }
 
    async deleteCategory(categoryName) {
-        console.log('deleteCategory called with:', categoryName);
-        console.log('Current categories before delete:', JSON.stringify(this.categories));
-        
         if (categoryName === 'default') {
           this.showToast('默认分类不能删除');
           return false;
@@ -203,14 +197,11 @@ async loadNotes() {
           delete this.categories[categoryName];
           this.saveNotes();
           
-          console.log('Categories after delete:', JSON.stringify(this.categories));
-          
           // 立即重新渲染分类（同步）
           this.renderCategories();
           
           // 然后异步再次渲染确保更新
           requestAnimationFrame(() => {
-            console.log('Re-rendering categories in next frame');
             this.renderCategories();
             
             // 强制触发重排
@@ -230,7 +221,6 @@ async loadNotes() {
           this.showToast(`分类"${categoryName}"已删除，相关笔记已彻底删除`);
           return true;
         }
-        console.log('Category not found:', categoryName);
         return false;
       }
 
@@ -246,7 +236,6 @@ async loadNotes() {
   }
 
      renderCategories() {
-       console.log('renderCategories called, current categories:', Object.keys(this.categories));
        const container = document.getElementById('categoriesContainer');
        if (!container) return;
 
@@ -296,7 +285,6 @@ async loadNotes() {
          }
        }
 
-       console.log('renderCategories completed, buttons in container:', container.children.length);
       }
 
    changeNoteColor(noteId, color) {
@@ -1239,7 +1227,6 @@ async loadNotes() {
        deleteBtn.addEventListener('click', async (e) => {
          e.stopPropagation();
          e.preventDefault();
-         console.log('标签删除按钮被点击:', tag);
          await this.deleteTag(tag);
        });
        tagEl.appendChild(deleteBtn);
@@ -1578,9 +1565,6 @@ async loadNotes() {
   }
 
    async deleteTag(tag) {
-      console.log('deleteTag called with:', tag);
-      console.log('Available tags before delete:', this.availableTags);
-
       // 统计有多少笔记包含这个标签
       const notesWithTag = this.notes.filter(note => note.tags.includes(tag));
 
@@ -1633,7 +1617,6 @@ async loadNotes() {
           }
         });
 
-        console.log('Available tags after delete:', this.availableTags);
         this.showToast(`标签"${tag}"已删除，已从相关笔记中移除`);
       }
     }
@@ -2070,7 +2053,6 @@ async loadNotes() {
      }
 
      // 详细检查配置参数
-     console.log('Upload config:', config);
      if (!config.bucket) {
        await this.showAlert('配置错误', 'Bucket 参数为空，请重新配置云同步');
        return;
