@@ -14,6 +14,7 @@ class MemosPlugin {
     this.currentPage = 1;
     this.pageSize = 20;
     this.isLoading = false;
+    this.nsfwFilterEnabled = false; // NSFW过滤开关
     // 从存储中恢复上次选择的分类
     this.restoreLastCategory();
     this.init();
@@ -40,6 +41,8 @@ class MemosPlugin {
      this.saveLastCategory();
      // 加载并应用图片预览开关状态
      await this.loadImageHoverState();
+     // 加载并应用NSFW过滤开关状态
+     await this.loadNsfwFilterState();
    }
 
 async loadNotes() {
@@ -170,6 +173,31 @@ async loadNotes() {
     if (notesSection) {
       notesSection.classList.toggle('image-hover-disabled', !enabled);
     }
+  }
+
+  // 加载NSFW过滤开关状态
+  async loadNsfwFilterState() {
+    try {
+      const result = await chrome.storage.local.get(['nsfwFilterEnabled']);
+      const enabled = result.nsfwFilterEnabled === true;
+      this.nsfwFilterEnabled = enabled;
+      const toggle = document.getElementById('nsfwFilterToggle');
+      if (toggle) {
+        toggle.checked = enabled;
+      }
+    } catch (error) {
+      this.nsfwFilterEnabled = false;
+    }
+  }
+
+  // 切换NSFW过滤开关
+  async toggleNsfwFilter(enabled) {
+    this.nsfwFilterEnabled = enabled;
+    try {
+      await chrome.storage.local.set({ nsfwFilterEnabled: enabled });
+    } catch (error) {
+    }
+    this.filterNotes();
   }
 
    async deleteCategory(categoryName) {
@@ -566,6 +594,11 @@ async loadNotes() {
       this.toggleImageHover(e.target.checked);
     });
 
+    // NSFW过滤开关
+    document.getElementById('nsfwFilterToggle').addEventListener('change', (e) => {
+      this.toggleNsfwFilter(e.target.checked);
+    });
+
     // 标签列表和分类列表鼠标拖动功能
     this.setupTagsListDrag();
     this.setupCategoriesListDrag();
@@ -645,6 +678,11 @@ async loadNotes() {
 
   filterNotes() {
     this.filteredNotes = this.notes.filter(note => {
+      // NSFW过滤：开启时排除带有NSFW标签的笔记
+      if (this.nsfwFilterEnabled && note.tags.some(tag => tag.toLowerCase() === 'nsfw')) {
+        return false;
+      }
+
       // 分类过滤：有搜索词时搜索全部，无搜索词时只显示当前分类
       if (!this.currentFilter.search && note.category !== this.currentCategory) {
         return false;

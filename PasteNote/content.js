@@ -16,6 +16,7 @@ class PasteNoteModal {
      this.lastFocusedElement = null;
      this.insertTargetElement = null; // 专门记录插入目标
     this.imageHoverEnabled = true; // 图片预览开关
+    this.nsfwFilterEnabled = false; // NSFW过滤开关
 
      // 监听焦点变化
      document.addEventListener('focusin', (e) => {
@@ -28,6 +29,14 @@ class PasteNoteModal {
      chrome.storage.onChanged.addListener((changes, namespace) => {
        if (namespace === 'local' && changes.imageHoverEnabled) {
          this.imageHoverEnabled = changes.imageHoverEnabled.newValue;
+       }
+       if (namespace === 'local' && changes.nsfwFilterEnabled) {
+         this.nsfwFilterEnabled = changes.nsfwFilterEnabled.newValue;
+         // 同步更新 toggle 状态
+         const toggle = this.$('pastenote-nsfw-toggle-input');
+         if (toggle) {
+           toggle.checked = this.nsfwFilterEnabled;
+         }
        }
      });
    }
@@ -101,10 +110,12 @@ class PasteNoteModal {
 
      // 加载图片预览开关状态
      try {
-       const toggleResult = await chrome.storage.local.get(['imageHoverEnabled']);
+       const toggleResult = await chrome.storage.local.get(['imageHoverEnabled', 'nsfwFilterEnabled']);
        this.imageHoverEnabled = toggleResult.imageHoverEnabled !== undefined ? toggleResult.imageHoverEnabled : true;
+       this.nsfwFilterEnabled = toggleResult.nsfwFilterEnabled === true;
      } catch (e) {
        this.imageHoverEnabled = true;
+       this.nsfwFilterEnabled = false;
      }
 
      if (!this.modal) {
@@ -216,6 +227,48 @@ class PasteNoteModal {
         white-space: nowrap;
         font-weight: 500;
       }
+      .pastenote-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      .pastenote-toggle input[type="checkbox"] {
+        display: none;
+      }
+      .pastenote-toggle .toggle-slider {
+        position: relative;
+        width: 28px;
+        height: 14px;
+        background: #ccc;
+        border-radius: 7px;
+        transition: background 0.3s;
+        flex-shrink: 0;
+      }
+      .pastenote-toggle .toggle-slider::before {
+        content: '';
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #fff;
+        top: 2px;
+        left: 2px;
+        transition: transform 0.3s;
+      }
+      .pastenote-toggle input:checked + .toggle-slider {
+        background: #000;
+      }
+      .pastenote-toggle input:checked + .toggle-slider::before {
+        transform: translateX(14px);
+      }
+      .pastenote-toggle .toggle-label {
+        font-size: 11px;
+        color: #666;
+        white-space: nowrap;
+      }
       @keyframes fadeIn {
         from { opacity: 0; }
         to { opacity: 1; }
@@ -241,7 +294,14 @@ class PasteNoteModal {
       align-items: center;
     `;
     header.innerHTML = `
-      <h2 style="margin: 0; font-size: 16px; font-weight: 600; color: #000;">PasteNote</h2>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <h2 style="margin: 0; font-size: 16px; font-weight: 600; color: #000;">PasteNote</h2>
+        <label class="pastenote-toggle" title="筛选掉NSFW标签笔记">
+          <input type="checkbox" id="pastenote-nsfw-toggle-input">
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">NSFW</span>
+        </label>
+      </div>
       <button id="pastenote-close-btn" style="
         background: none;
         border: none;
@@ -339,6 +399,17 @@ class PasteNoteModal {
      const searchInput = container.querySelector('#pastenote-search');
      searchInput.addEventListener('input', (e) => {
        this.filterNotes(e.target.value);
+     });
+
+     // NSFW过滤开关
+     const nsfwToggle = container.querySelector('#pastenote-nsfw-toggle-input');
+     nsfwToggle.checked = this.nsfwFilterEnabled;
+     nsfwToggle.addEventListener('change', async (e) => {
+       this.nsfwFilterEnabled = e.target.checked;
+       try {
+         await chrome.storage.local.set({ nsfwFilterEnabled: e.target.checked });
+       } catch (err) {}
+       this.filterNotes(searchInput.value);
      });
 
      // 设置分类区域拖动效果
@@ -1041,6 +1112,14 @@ class PasteNoteModal {
 
        // 根据选中的分类过滤
        this.filteredNotes = [...this.notes];
+
+       // NSFW过滤：开启时排除带有NSFW标签的笔记
+       if (this.nsfwFilterEnabled) {
+         this.filteredNotes = this.filteredNotes.filter(note =>
+           !note.tags || !note.tags.some(tag => tag.toLowerCase() === 'nsfw')
+         );
+       }
+
        if (this.currentCategory && this.currentCategory !== 'all') {
          this.filteredNotes = this.filteredNotes.filter(note => note.category === this.currentCategory);
        }
