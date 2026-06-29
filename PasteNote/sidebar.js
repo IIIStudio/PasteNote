@@ -772,36 +772,15 @@ async loadNotes() {
           window.open(note.imageUrl, '_blank');
         });
 
-        // 图片浮层预览定位：鼠标悬停时动态计算位置，显示在笔记项右侧
+        // 图片浮层预览定位：图片右边缘对齐笔记右边缘，显示在笔记下方
         const previewEl = div.querySelector('.note-image-preview');
         div.addEventListener('mouseenter', () => {
           if (!this.imageHoverEnabled) return;
           const rect = div.getBoundingClientRect();
-          const sidebarWidth = document.querySelector('.notes-section')?.closest('body')?.offsetWidth || 400;
-          const previewWidth = 420;
-          const previewHeight = 350;
           
-          let left = rect.right + 10;
-          let top = rect.top;
-          
-          // 如果右侧空间不够，显示在左侧
-          if (left + previewWidth > window.innerWidth - 10) {
-            left = rect.left - previewWidth - 10;
-          }
-          // 如果左侧也不够，显示在笔记项下方
-          if (left < 10) {
-            left = rect.left;
-            top = rect.bottom + 6;
-          }
-          // 防止底部溢出
-          if (top + previewHeight > window.innerHeight - 10) {
-            top = window.innerHeight - previewHeight - 10;
-          }
-          // 防止顶部溢出
-          if (top < 10) top = 10;
-          
-          previewEl.style.left = left + 'px';
-          previewEl.style.top = top + 'px';
+          previewEl.style.right = (window.innerWidth - rect.right - 7) + 'px';
+          previewEl.style.top = rect.bottom + 'px';
+          previewEl.style.left = 'auto';
         });
       }
 
