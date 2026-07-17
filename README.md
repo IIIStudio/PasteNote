@@ -112,7 +112,6 @@ PasteNote/
 ├── sidebar.js             # 侧边栏主逻辑 (~2200 行)
 ├── popup.css              # 全局样式 — 图标动画、布局
 ├── cloudSync.js           # 腾讯云 COS 同步模块
-├── exportImport.js        # JSON 导入导出模块
 ├── icons/                 # 图标资源
 └── libs/                  # 第三方库 (COS SDK)
 ```

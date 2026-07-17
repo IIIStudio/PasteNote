@@ -60,17 +60,20 @@ async loadNotes() {
        note.category = 'default';
      }
    });
-   // 确保 filteredNotes 正确初始化，保持置顶顺序：先排序再复制
-   const sortedNotes = [...this.notes];
-   sortedNotes.sort((a, b) => {
-     if (a.pinned && !b.pinned) return -1;
-     if (!a.pinned && b.pinned) return 1;
-     return new Date(b.createdAt) - new Date(a.createdAt);
-   });
-   this.filteredNotes = sortedNotes;
+   // 确保 filteredNotes 正确初始化，保持置顶顺序
+   this.filteredNotes = this.sortNotes([...this.notes]);
    this.currentPage = 1;
    this.renderedCount = 0;
  }
+
+  // 排序：置顶笔记优先，其余按创建时间倒序
+  sortNotes(notes) {
+    return notes.sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+  }
 
   async saveNotes() {
     await chrome.storage.local.set({ 
@@ -201,56 +204,34 @@ async loadNotes() {
   }
 
    async deleteCategory(categoryName) {
-        if (categoryName === 'default') {
-          this.showToast('默认分类不能删除');
-          return false;
-        }
-        
-        // 如果删除的是当前选中的分类，切换到默认分类
-        if (this.currentCategory === categoryName) {
-          this.currentCategory = 'default';
-          this.saveLastCategory();
-        }
-        
-        // 彻底删除该分类下的所有笔记
-        if (this.categories[categoryName]) {
-          const notesToDelete = this.notes.filter(note => note.category === categoryName);
-          if (notesToDelete.length > 0) {
-            if (!await this.showConfirm('删除分类', `此分类下有 ${notesToDelete.length} 个笔记，删除分类将同时删除这些笔记。确定继续吗？`)) {
-              return false;
-            }
-            // 从notes数组中删除这些笔记
-            this.notes = this.notes.filter(note => note.category !== categoryName);
-          }
-          delete this.categories[categoryName];
-          this.saveNotes();
-          
-          // 立即重新渲染分类（同步）
-          this.renderCategories();
-          
-          // 然后异步再次渲染确保更新
-          requestAnimationFrame(() => {
-            this.renderCategories();
-            
-            // 强制触发重排
-            const container = document.getElementById('categoriesContainer');
-            if (container) {
-              container.style.display = 'none';
-              container.offsetHeight; // 强制重排
-              container.style.display = '';
-            }
-          });
-          
-          this.renderTags();
-          this.filterNotes();
-          this.renderCalendar();
-          this.renderNotes();
-          
-          this.showToast(`分类"${categoryName}"已删除，相关笔记已彻底删除`);
-          return true;
-        }
-        return false;
-      }
+     if (categoryName === 'default') {
+       this.showToast('默认分类不能删除');
+       return false;
+     }
+
+     // 如果删除的是当前选中的分类，切换到默认分类
+     if (this.currentCategory === categoryName) {
+       this.currentCategory = 'default';
+       this.saveLastCategory();
+     }
+
+     if (this.categories[categoryName]) {
+       // 删除该分类下的所有笔记
+       this.notes = this.notes.filter(note => note.category !== categoryName);
+       delete this.categories[categoryName];
+       this.saveNotes();
+
+       this.renderCategories();
+       this.renderTags();
+       this.filterNotes();
+       this.renderCalendar();
+       this.renderNotes();
+
+       this.showToast(`分类"${categoryName}"已删除，相关笔记已彻底删除`);
+       return true;
+     }
+     return false;
+   }
 
   switchCategory(categoryName) {
     if (this.categories[categoryName]) {
@@ -323,108 +304,6 @@ async loadNotes() {
       this.filterNotes();
       this.showToast('笔记颜色已更新');
     }
-  }
-
-  showColorPicker(noteId, event) {
-    event.stopPropagation();
-    
-    // 移除现有的颜色选择器
-    const existingPicker = document.querySelector('.note-color-picker-popup');
-    if (existingPicker) {
-      existingPicker.remove();
-      return;
-    }
-    
-    // 创建颜色选择器弹窗
-    const picker = document.createElement('div');
-    picker.className = 'note-color-picker-popup';
-    picker.style.cssText = `
-      position: absolute;
-      background: white;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      padding: 8px;
-      z-index: 10000;
-      display: flex;
-      gap: 4px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    `;
-    
-    const colors = [
-      { name: 'white', value: 'white', style: 'background: white; border: 1px solid #ccc;' },
-      { name: 'yellow', value: 'ffe66e', style: 'background: #ffe66e;' },
-      { name: 'green', value: 'a1ef9b', style: 'background: #a1ef9b;' },
-      { name: 'pink', value: 'ffafdf', style: 'background: #ffafdf;' },
-      { name: 'purple', value: 'd7afff', style: 'background: #d7afff;' },
-      { name: 'lightblue', value: '9edfff', style: 'background: #9edfff;' },
-      { name: 'lightgray', value: 'e0e0e0', style: 'background: #e0e0e0;' },
-      { name: 'gray', value: '767676', style: 'background: #767676;' }
-    ];
-    
-    colors.forEach(color => {
-      const btn = document.createElement('button');
-      btn.style.cssText = `
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        border: none;
-        cursor: pointer;
-        padding: 0;
-        ${color.style}
-      `;
-      btn.title = color.name;
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.changeNoteColor(noteId, color.value);
-        picker.remove();
-      });
-      picker.appendChild(btn);
-    });
-    
-    // 定位颜色选择器
-    const rect = event.target.getBoundingClientRect();
-    picker.style.left = rect.left + 'px';
-    picker.style.top = (rect.bottom + 5) + 'px';
-    
-    document.body.appendChild(picker);
-    
-    // 点击其他地方关闭颜色选择器
-    setTimeout(() => {
-      document.addEventListener('click', function closePicker() {
-        picker.remove();
-        document.removeEventListener('click', closePicker);
-      });
-    }, 0);
-  }
-
-  async saveColor() {
-    await chrome.storage.local.set({ memos_color: this.currentColor });
-  }
-
-  bindColorPickerEvents() {
-    document.querySelectorAll('.color-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const color = btn.dataset.color;
-        this.setColor(color);
-      });
-    });
-  }
-
-  setColor(color) {
-    this.currentColor = color;
-    
-    // 更新按钮状态
-    document.querySelectorAll('.color-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.color === color);
-    });
-    
-    // 保存到浏览器存储
-    this.saveColor();
-    
-    // 应用颜色到新建笔记
-    this.applyColorToEditor();
-    
-    this.showToast(`颜色已切换为 ${color === 'white' ? '默认' : '#' + color}`);
   }
 
   getColorClassName(color) {
@@ -600,83 +479,51 @@ async loadNotes() {
     });
 
     // 标签列表和分类列表鼠标拖动功能
-    this.setupTagsListDrag();
-    this.setupCategoriesListDrag();
+    this.setupDragScroll(document.getElementById('tagsContainer'));
+    this.setupDragScroll(document.getElementById('categoriesContainer'), {
+      shouldSkip: (e) => e.target.closest('#addCategoryBtn') || e.button === 2
+    });
   }
 
-  setupTagsListDrag() {
-    const tagsList = document.getElementById('tagsContainer');
-    if (!tagsList) return;
+  setupDragScroll(element, options = {}) {
+    if (!element) return;
 
     let isDown = false;
     let startX;
     let scrollLeft;
 
-    tagsList.addEventListener('mousedown', (e) => {
+    element.addEventListener('mousedown', (e) => {
+      if (options.shouldSkip && options.shouldSkip(e)) return;
       isDown = true;
-      tagsList.classList.add('active');
-      startX = e.pageX - tagsList.offsetLeft;
-      scrollLeft = tagsList.scrollLeft;
+      element.classList.add('active');
+      startX = e.pageX - element.offsetLeft;
+      scrollLeft = element.scrollLeft;
     });
 
-    tagsList.addEventListener('mouseleave', () => {
+    element.addEventListener('mouseleave', () => {
       isDown = false;
-      tagsList.classList.remove('active');
+      element.classList.remove('active');
     });
 
-    tagsList.addEventListener('mouseup', () => {
+    element.addEventListener('mouseup', () => {
       isDown = false;
-      tagsList.classList.remove('active');
+      element.classList.remove('active');
     });
 
-    tagsList.addEventListener('mousemove', (e) => {
+    element.addEventListener('mousemove', (e) => {
       if (!isDown) return;
       e.preventDefault();
-      const x = e.pageX - tagsList.offsetLeft;
+      const x = e.pageX - element.offsetLeft;
       const walk = (x - startX) * 2;
-      tagsList.scrollLeft = scrollLeft - walk;
-    });
-  }
-
-  setupCategoriesListDrag() {
-    const categoriesList = document.getElementById('categoriesContainer');
-    if (!categoriesList) return;
-
-    let isDown = false;
-    let startX;
-    let scrollLeft;
-
-    categoriesList.addEventListener('mousedown', (e) => {
-      // 如果点击的是添加按钮或右键，不触发滑动
-      if (e.target.closest('#addCategoryBtn') || e.button === 2) {
-        return;
-      }
-      isDown = true;
-      categoriesList.classList.add('active');
-      startX = e.pageX - categoriesList.offsetLeft;
-      scrollLeft = categoriesList.scrollLeft;
-    });
-
-    categoriesList.addEventListener('mouseleave', () => {
-      isDown = false;
-      categoriesList.classList.remove('active');
-    });
-
-    categoriesList.addEventListener('mouseup', () => {
-      isDown = false;
-      categoriesList.classList.remove('active');
-    });
-
-    categoriesList.addEventListener('mousemove', (e) => {
-      if (!isDown) return;
-      e.preventDefault();
-      const x = e.pageX - categoriesList.offsetLeft;
-      const walk = (x - startX) * 2;
-      categoriesList.scrollLeft = scrollLeft - walk;
+      element.scrollLeft = scrollLeft - walk;
     });
   }
 
   filterNotes() {
+    const search = this.currentFilter.search;
+    const isDateSearch = search && /^\d{4}-\d{2}-\d{2}$/.test(search);
+    const searchLower = search ? search.toLowerCase() : '';
+
     this.filteredNotes = this.notes.filter(note => {
       // NSFW过滤：开启时排除带有NSFW标签的笔记
       if (this.nsfwFilterEnabled && note.tags.some(tag => tag.toLowerCase() === 'nsfw')) {
@@ -684,52 +531,41 @@ async loadNotes() {
       }
 
       // 分类过滤：有搜索词时搜索全部，无搜索词时只显示当前分类
-      if (!this.currentFilter.search && note.category !== this.currentCategory) {
+      if (!search && note.category !== this.currentCategory) {
         return false;
       }
-      
-      const matchesSearch = !this.currentFilter.search ||
-        note.title.toLowerCase().includes(this.currentFilter.search.toLowerCase()) ||
-        note.content.toLowerCase().includes(this.currentFilter.search.toLowerCase());
 
-      // 如果搜索词是日期格式（YYYY-MM-DD），也检查笔记的创建日期
-      let matchesDate = true;
-      if (this.currentFilter.search && this.currentFilter.search.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        const noteDate = new Date(note.createdAt);
-        const year = noteDate.getFullYear();
-        const month = String(noteDate.getMonth() + 1).padStart(2, '0');
-        const day = String(noteDate.getDate()).padStart(2, '0');
-        const noteDateStr = `${year}-${month}-${day}`;
-        matchesDate = noteDateStr === this.currentFilter.search;
-      }
-
+      // 标签过滤
       const matchesTags = this.currentFilter.tags.length === 0 ||
         this.currentFilter.tags.every(tag => note.tags.includes(tag));
 
-      // 如果搜索词是日期，只匹配日期；否则匹配标题和内容
-      if (this.currentFilter.search && this.currentFilter.search.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        return matchesDate && matchesTags;
+      // 日期搜索：只匹配创建日期
+      if (isDateSearch) {
+        const noteDate = new Date(note.createdAt);
+        const noteDateStr = `${noteDate.getFullYear()}-${String(noteDate.getMonth() + 1).padStart(2, '0')}-${String(noteDate.getDate()).padStart(2, '0')}`;
+        return noteDateStr === search && matchesTags;
       }
 
+      // 关键词搜索：匹配标题和内容
+      const matchesSearch = !search ||
+        note.title.toLowerCase().includes(searchLower) ||
+        note.content.toLowerCase().includes(searchLower);
+
       return matchesSearch && matchesTags;
-     });
-     // 置顶笔记排在前面，非置顶的按创建时间倒序排列
-     this.filteredNotes.sort((a, b) => {
-       if (a.pinned && !b.pinned) return -1;
-       if (!a.pinned && b.pinned) return 1;
-       // 都是置顶或都不是置顶时，按创建时间倒序（新的在前）
-       return new Date(b.createdAt) - new Date(a.createdAt);
-     });
-     // 记住之前已渲染的数量，避免编辑/分类变更后滚动位置丢失
-     const previousCount = this.renderedCount;
-     this.currentPage = 1;
-     this.renderNotes();
-     // 补齐之前已加载的所有页面
-     while (this.renderedCount < Math.min(previousCount, this.filteredNotes.length)) {
-       this.currentPage++;
-       this.renderNotes();
-     }
-   }
+    });
+
+    this.sortNotes(this.filteredNotes);
+
+    // 记住之前已渲染的数量，避免编辑/分类变更后滚动位置丢失
+    const previousCount = this.renderedCount;
+    this.currentPage = 1;
+    this.renderNotes();
+    // 补齐之前已加载的所有页面
+    while (this.renderedCount < Math.min(previousCount, this.filteredNotes.length)) {
+      this.currentPage++;
+      this.renderNotes();
+    }
+  }
 
   renderNotes() {
     const container = document.getElementById('notesList');
@@ -1072,57 +908,13 @@ async loadNotes() {
       // 鼠标悬停显示提示
       dayDiv.addEventListener('mouseenter', (e) => {
         if (noteCount > 0) {
-          const tooltip = document.getElementById('calendarTooltip');
-          tooltip.innerHTML = `${dateStr} · ${noteCount} 条笔记`;
-          tooltip.style.display = 'block';
-
-          // 计算位置，避免超出屏幕
-          const tooltipWidth = tooltip.offsetWidth;
-          const tooltipHeight = tooltip.offsetHeight;
-          const windowWidth = window.innerWidth;
-          const windowHeight = window.innerHeight;
-
-          let left = e.clientX + 10;
-          let top = e.clientY - tooltipHeight - 10;
-
-          // 如果靠右边，tooltip 显示在左边
-          if (left + tooltipWidth > windowWidth) {
-            left = e.clientX - tooltipWidth - 10;
-          }
-
-          // 如果靠顶部，tooltip 显示在下方
-          if (top < 10) {
-            top = e.clientY + 10;
-          }
-
-          tooltip.style.left = left + 'px';
-          tooltip.style.top = top + 'px';
+          this.positionCalendarTooltip(e, dateStr, noteCount);
         }
       });
 
       dayDiv.addEventListener('mousemove', (e) => {
         if (noteCount > 0) {
-          const tooltip = document.getElementById('calendarTooltip');
-          const tooltipWidth = tooltip.offsetWidth;
-          const tooltipHeight = tooltip.offsetHeight;
-          const windowWidth = window.innerWidth;
-          const windowHeight = window.innerHeight;
-
-          let left = e.clientX + 10;
-          let top = e.clientY - tooltipHeight - 10;
-
-          // 如果靠右边，tooltip 显示在左边
-          if (left + tooltipWidth > windowWidth) {
-            left = e.clientX - tooltipWidth - 10;
-          }
-
-          // 如果靠顶部，tooltip 显示在下方
-          if (top < 10) {
-            top = e.clientY + 10;
-          }
-
-          tooltip.style.left = left + 'px';
-          tooltip.style.top = top + 'px';
+          this.positionCalendarTooltip(e, dateStr, noteCount);
         }
       });
 
@@ -1170,6 +962,33 @@ async loadNotes() {
       countSpan.textContent = `${this.notes.length} 条笔记`;
       calendarContainer.appendChild(countSpan);
     }
+  }
+
+  positionCalendarTooltip(e, dateStr, noteCount) {
+    const tooltip = document.getElementById('calendarTooltip');
+    tooltip.innerHTML = `${dateStr} · ${noteCount} 条笔记`;
+    tooltip.style.display = 'block';
+
+    const tooltipWidth = tooltip.offsetWidth;
+    const tooltipHeight = tooltip.offsetHeight;
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+
+    let left = e.clientX + 10;
+    let top = e.clientY - tooltipHeight - 10;
+
+    // 如果靠右边，tooltip 显示在左边
+    if (left + tooltipWidth > windowWidth) {
+      left = e.clientX - tooltipWidth - 10;
+    }
+
+    // 如果靠顶部，tooltip 显示在下方
+    if (top < 10) {
+      top = e.clientY + 10;
+    }
+
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
   }
 
    showNoteModal(noteIndex = null) {
@@ -1233,11 +1052,6 @@ async loadNotes() {
   hideNoteModal() {
     document.getElementById('noteModal').style.display = 'none';
   }
-
-   loadAvailableTags() {
-     // 从所有笔记中获取标签
-     this.availableTags = [...new Set(this.notes.flatMap(note => note.tags))];
-   }
 
    updateAvailableTagsForCurrentCategory() {
      // 根据当前选中的分类获取标签
@@ -1395,7 +1209,14 @@ async loadNotes() {
       e.stopPropagation();
       const cat = this.contextMenuCategory;
       this.hideCategoryContextMenu();
-      if (cat && await this.showConfirm('删除分类', `确定要删除分类"${cat}"吗？`)) {
+      if (!cat) return;
+
+      const notesCount = this.notes.filter(note => note.category === cat).length;
+      const message = notesCount > 0
+        ? `分类"${cat}"下有 ${notesCount} 个笔记，删除分类将同时删除这些笔记。确定继续吗？`
+        : `确定要删除分类"${cat}"吗？`;
+
+      if (await this.showConfirm('删除分类', message)) {
         await this.deleteCategory(cat);
       }
     });
@@ -1600,14 +1421,6 @@ async loadNotes() {
     }
   }
 
-  removeTag(tag) {
-    const index = this.selectedTags.indexOf(tag);
-    if (index > -1) {
-      this.selectedTags.splice(index, 1);
-      this.renderTagsWrapper();
-    }
-  }
-
    async deleteTag(tag) {
       // 统计有多少笔记包含这个标签
       const notesWithTag = this.notes.filter(note => note.tags.includes(tag));
@@ -1706,22 +1519,6 @@ async loadNotes() {
        this.renderCalendar();
        this.hideNoteModal();
      }
-
-  editNote(index) {
-    const actualIndex = this.notes.findIndex(note => note.id === this.filteredNotes[index].id);
-    this.showNoteModal(actualIndex);
-  }
-
-  async deleteNote() {
-    if (this.editingIndex !== null && await this.showConfirm('删除笔记', '确定删除此笔记？')) {
-      this.notes.splice(this.editingIndex, 1);
-      this.saveNotes();
-      this.filterNotes();
-      this.renderTags();
-      this.renderCalendar();
-      this.hideNoteModal();
-    }
-  }
 
    async exportNotes() {
      const result = await chrome.storage.local.get(['cos_enabled']);

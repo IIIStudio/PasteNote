@@ -1271,41 +1271,6 @@ class PasteNoteModal {
       loadingIndicator.style.display = 'none';
     }
   }
-
-  showToast(message) {
-    if (!this.shadowRoot) return;
-
-    // 移除现有的 toast
-    const existingToast = this.$('pastenote-toast');
-    if (existingToast) {
-      existingToast.remove();
-    }
-
-    const toast = document.createElement('div');
-    toast.id = 'pastenote-toast';
-    toast.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: #000;
-      color: #fff;
-      padding: 8px 16px;
-      font-size: 14px;
-      z-index: 2147483648;
-      animation: fadeIn 0.3s;
-    `;
-    toast.textContent = message;
-
-    this.shadowRoot.appendChild(toast);
-
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transition = 'opacity 0.3s';
-      setTimeout(() => {
-        toast.remove();
-      }, 300);
-    }, 2000);
-  }
 }
 
 // 创建全局模态框实例
