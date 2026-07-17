@@ -37,6 +37,19 @@ class MemosPlugin {
      this.updateSyncButtons();
      this.listenForTabChanges();
      this.bindScrollEvent();
+     // 监听容器宽度变化，重新渲染热力图（防抖），使列数随侧边栏宽度自适应
+     const calWrap = document.querySelector('.calendar-container');
+     let resizeTimer = null;
+     const debouncedRender = () => {
+       if (resizeTimer) clearTimeout(resizeTimer);
+       resizeTimer = setTimeout(() => this.renderCalendar(), 150);
+     };
+     if (calWrap && window.ResizeObserver) {
+       // ResizeObserver 能精准捕获侧边栏拖动带来的宽度变化
+       new ResizeObserver(debouncedRender).observe(calWrap);
+     } else {
+       window.addEventListener('resize', debouncedRender);
+     }
      // 保存当前分类到存储
      this.saveLastCategory();
      // 加载并应用图片预览开关状态
@@ -850,17 +863,23 @@ async loadNotes() {
       noteDates.add(dateStr);
     });
 
-    // 从今天往前推30周（210天），找到最早的一个周日
+    // 从今天往前推若干周，找到最早的一个周日
     let startDate = new Date(today);
-    let weekCount = 30; // 30周
-    // 往前推30周
-    startDate.setDate(startDate.getDate() - (weekCount * 7));
-    // 找到那个周日
-    const startDayOfWeek = startDate.getDay();
-    startDate.setDate(startDate.getDate() - startDayOfWeek);
-
-    // 计算到今天的总天数
-    const totalDays = Math.floor((today - startDate) / (1000 * 60 * 60 * 24)) + 1;
+    // 根据容器宽度动态计算要显示的周数（列数）
+    // 每列宽度 = 格子宽度(8px) + 间隙(2px) = 10px
+    const cellSize = 8;
+    const gapSize = 2;
+    const containerWidth = container.clientWidth || 300;
+    let weekCount = Math.floor((containerWidth + gapSize) / (cellSize + gapSize));
+    // 列数纯粹由容器宽度决定（最少10列，上限150防极端），宽度变大就显示更多列
+    weekCount = Math.max(10, Math.min(weekCount, 150));
+    // 最右一列对齐到包含今天的这一周（周日开始），向左排布 weekCount 列
+    const todayWeekStart = new Date(today);
+    todayWeekStart.setDate(todayWeekStart.getDate() - todayWeekStart.getDay());
+    startDate = new Date(todayWeekStart);
+    startDate.setDate(startDate.getDate() - (weekCount - 1) * 7);
+    // 总天数严格等于 列数 * 7，避免多出 1 列被 overflow 裁切
+    const totalDays = weekCount * 7;
 
     // 创建日期数组，从最早到今天
     const days = [];

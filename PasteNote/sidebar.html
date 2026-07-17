@@ -133,9 +133,12 @@
       height: auto;
     }
 
-    /* 侧边栏模式下日历宽度控制 */
+    /* 侧边栏模式下日历：格子固定大小，列数随容器宽度自适应 */
     .calendar {
-      grid-template-columns: repeat(31, 1fr);
+      grid-template-rows: repeat(7, 8px);
+      grid-auto-columns: 8px;
+      grid-template-columns: none;
+      gap: 2px;
       overflow: hidden;
     }
 
