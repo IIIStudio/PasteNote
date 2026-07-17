@@ -852,19 +852,6 @@ async loadNotes() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // 获取有笔记的所有日期
-    const noteDates = new Set();
-    this.notes.forEach(note => {
-      const noteDate = new Date(note.createdAt);
-      const year = noteDate.getFullYear();
-      const month = String(noteDate.getMonth() + 1).padStart(2, '0');
-      const day = String(noteDate.getDate()).padStart(2, '0');
-      const dateStr = `${year}-${month}-${day}`;
-      noteDates.add(dateStr);
-    });
-
-    // 从今天往前推若干周，找到最早的一个周日
-    let startDate = new Date(today);
     // 根据容器宽度动态计算要显示的周数（列数）
     // 每列宽度 = 格子宽度(8px) + 间隙(2px) = 10px
     const cellSize = 8;
@@ -876,7 +863,7 @@ async loadNotes() {
     // 最右一列对齐到包含今天的这一周（周日开始），向左排布 weekCount 列
     const todayWeekStart = new Date(today);
     todayWeekStart.setDate(todayWeekStart.getDate() - todayWeekStart.getDay());
-    startDate = new Date(todayWeekStart);
+    const startDate = new Date(todayWeekStart);
     startDate.setDate(startDate.getDate() - (weekCount - 1) * 7);
     // 总天数严格等于 列数 * 7，避免多出 1 列被 overflow 裁切
     const totalDays = weekCount * 7;
