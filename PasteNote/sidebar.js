@@ -645,12 +645,12 @@ async loadNotes() {
         </div>
       `;
 
-      // 点击图标按钮在新标签页查看全图
+      // 点击图标按钮在屏幕内显示全图（灯箱）
       if (note.imageUrl && note.imageUrl.trim()) {
         const imgBtn = div.querySelector('.note-image-btn');
         imgBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          window.open(note.imageUrl, '_blank');
+          this.showImageLightbox(note.imageUrl);
         });
 
         // 图片浮层预览定位：图片右边缘对齐笔记右边缘，优先显示在下方，空间不足时显示在上方
@@ -1596,6 +1596,47 @@ async loadNotes() {
        input.click();
      }
    }
+
+  showImageLightbox(imageUrl) {
+    // 移除已有的灯箱
+    const existing = document.getElementById('imageLightbox');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'imageLightbox';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 10002;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: zoom-out;
+    `;
+
+    const img = document.createElement('img');
+    img.src = imageUrl;
+    img.style.cssText = `
+      max-width: 90%;
+      max-height: 90vh;
+      object-fit: contain;
+    `;
+    img.onerror = () => { img.style.display = 'none'; };
+    overlay.appendChild(img);
+
+    document.body.appendChild(overlay);
+
+    // 点击或 ESC 关闭
+    overlay.addEventListener('click', () => overlay.remove());
+    const escHandler = (e) => {
+      if (e.key === 'Escape') {
+        overlay.remove();
+        document.removeEventListener('keydown', escHandler);
+      }
+    };
+    document.addEventListener('keydown', escHandler);
+  }
 
   showToast(message) {
     const toast = document.createElement('div');
