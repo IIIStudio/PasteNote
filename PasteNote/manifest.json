@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "PasteNote",
-  "version": "1.4",
-  "description": "自托管笔记和知识管理浏览器插件",
+  "version": "1.4.1",
+  "description": "自托管笔记和收藏管理浏览器插件",
   "permissions": [
     "storage",
     "activeTab",

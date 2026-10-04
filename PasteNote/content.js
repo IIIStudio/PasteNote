@@ -89,6 +89,9 @@ class PasteNoteModal {
        if (!note.category) {
          note.category = 'default';
        }
+       if (typeof note.archived !== 'boolean') {
+         note.archived = false;
+       }
      });
      // 关键：对原始数据进行排序，确保后续所有操作都基于有序数据
      this.notes.sort((a, b) => {
@@ -1119,6 +1122,10 @@ class PasteNoteModal {
            !note.tags || !note.tags.some(tag => tag.toLowerCase() === 'nsfw')
          );
        }
+
+       // 已归档的笔记不参与右键插入列表
+       this.filteredNotes = this.filteredNotes.filter(note => !note.archived);
+
 
        if (this.currentCategory && this.currentCategory !== 'all') {
          this.filteredNotes = this.filteredNotes.filter(note => note.category === this.currentCategory);

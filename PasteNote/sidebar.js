@@ -15,6 +15,7 @@ class MemosPlugin {
     this.pageSize = 20;
     this.isLoading = false;
     this.nsfwFilterEnabled = false; // NSFW过滤开关
+    this.archiveFilterEnabled = true; // 归档过滤开关（默认开启：隐藏已归档笔记）
     // 从存储中恢复上次选择的分类
     this.restoreLastCategory();
     this.init();
@@ -56,7 +57,9 @@ class MemosPlugin {
      await this.loadImageHoverState();
      // 加载并应用NSFW过滤开关状态
      await this.loadNsfwFilterState();
-   }
+     // 加载并应用归档过滤开关状态
+     await this.loadArchiveFilterState();
+     }
 
 async loadNotes() {
    const result = await chrome.storage.local.get(['memos_notes', 'memos_categories']);
@@ -72,8 +75,10 @@ async loadNotes() {
      if (!note.category) {
        note.category = 'default';
      }
-   });
-   // 确保 filteredNotes 正确初始化，保持置顶顺序
+     });
+     // 为旧数据补齐归档字段
+     this.normalizeNotesArchived();
+     // 确保 filteredNotes 正确初始化，保持置顶顺序
    this.filteredNotes = this.sortNotes([...this.notes]);
    this.currentPage = 1;
    this.renderedCount = 0;
@@ -85,6 +90,15 @@ async loadNotes() {
       if (a.pinned && !b.pinned) return -1;
       if (!a.pinned && b.pinned) return 1;
       return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+  }
+
+  // 为缺失归档字段的笔记补齐 archived=false
+  normalizeNotesArchived() {
+    this.notes.forEach(note => {
+      if (typeof note.archived !== 'boolean') {
+        note.archived = false;
+      }
     });
   }
 
@@ -214,6 +228,155 @@ async loadNotes() {
     } catch (error) {
     }
     this.filterNotes();
+  }
+
+  // 加载归档过滤开关状态（默认开启：隐藏已归档笔记）
+  async loadArchiveFilterState() {
+    try {
+      const result = await chrome.storage.local.get(['archiveFilterEnabled']);
+      const enabled = result.archiveFilterEnabled !== undefined ? result.archiveFilterEnabled : true;
+      this.archiveFilterEnabled = enabled;
+      const toggle = document.getElementById('archiveFilterToggle');
+      if (toggle) {
+        toggle.checked = enabled;
+      }
+    } catch (error) {
+      this.archiveFilterEnabled = true;
+    }
+  }
+
+  // 切换归档过滤开关
+  async toggleArchiveFilter(enabled) {
+    this.archiveFilterEnabled = enabled;
+    try {
+      await chrome.storage.local.set({ archiveFilterEnabled: enabled });
+    } catch (error) {
+    }
+    this.filterNotes();
+    this.renderTags();
+  }
+
+  // 切换笔记归档状态
+  async toggleArchive(noteId, noteEl) {
+    const index = this.notes.findIndex(n => n.id == noteId);
+    if (index === -1) return;
+    const note = this.notes[index];
+
+    if (note.archived) {
+      // 取消归档：笔记保持显示，仅更新样式与按钮
+      note.archived = false;
+      note.updatedAt = new Date().toISOString();
+      await this.saveNotes();
+      if (noteEl) {
+        noteEl.classList.remove('archived');
+        this.updateArchiveBadge(noteEl, false);
+        const btn = noteEl.querySelector('.note-archive-btn');
+        if (btn) {
+          btn.classList.remove('archived');
+          btn.title = '归档';
+        }
+      }
+      this.renderCalendar();
+      this.showToast('已取消归档');
+      return;
+    }
+
+    // 归档
+    note.archived = true;
+    note.updatedAt = new Date().toISOString();
+    await this.saveNotes();
+
+    if (this.archiveFilterEnabled && noteEl) {
+      // 归档开关开启时从列表隐藏：向右滑动消失，下方笔记上移
+      this.animateSlideOut(noteEl, () => {
+        this.filterNotes();
+        this.renderTags();
+        this.renderCalendar();
+      });
+    } else {
+      // 归档开关关闭时仍显示：灰化并同步更新按钮与归档标签
+      if (noteEl) {
+        noteEl.classList.add('archived');
+        this.updateArchiveBadge(noteEl, true);
+        const btn = noteEl.querySelector('.note-archive-btn');
+        if (btn) {
+          btn.classList.add('archived');
+          btn.title = '取消归档';
+        }
+      }
+      this.renderTags();
+      this.renderCalendar();
+    }
+    this.showToast('笔记已归档');
+  }
+
+  // 在笔记卡片右上角添加/移除「归档」标签（用于增量更新）
+  updateArchiveBadge(noteEl, archived) {
+    if (!noteEl) return;
+    const existing = noteEl.querySelector('.note-archived-badge');
+    if (archived) {
+      if (existing) return;
+      const badge = document.createElement('div');
+      badge.className = 'note-archived-badge';
+      badge.textContent = '归档';
+      const categoryEl = noteEl.querySelector('.note-category');
+      if (categoryEl) {
+        categoryEl.insertAdjacentElement('afterend', badge);
+      } else {
+        noteEl.appendChild(badge);
+      }
+    } else if (existing) {
+      existing.remove();
+    }
+  }
+
+  // 向右滑出并收拢高度，使下方笔记上移
+  animateSlideOut(el, done) {
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      // 动画结束后立即移除元素，避免残留导致横向溢出
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+      if (typeof done === 'function') done();
+    };
+
+    if (!el || typeof el.animate !== 'function') {
+      finish();
+      return;
+    }
+
+    const style = getComputedStyle(el);
+    const from = {
+      transform: 'translateX(0)',
+      opacity: 1,
+      height: el.offsetHeight + 'px',
+      marginBottom: style.marginBottom,
+      paddingTop: style.paddingTop,
+      paddingBottom: style.paddingBottom,
+      borderTopWidth: style.borderTopWidth,
+      borderBottomWidth: style.borderBottomWidth
+    };
+    const to = {
+      transform: 'translateX(120%)',
+      opacity: 0,
+      height: '0px',
+      marginBottom: '0px',
+      paddingTop: '0px',
+      paddingBottom: '0px',
+      borderTopWidth: '0px',
+      borderBottomWidth: '0px'
+    };
+
+    el.classList.add('sliding-out');
+    const anim = el.animate([from, to], {
+      duration: 380,
+      easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+      fill: 'forwards'
+    });
+    anim.onfinish = finish;
+    // 兜底：动画被中断时也要收尾
+    setTimeout(finish, 600);
   }
 
    async deleteCategory(categoryName) {
@@ -491,6 +654,11 @@ async loadNotes() {
       this.toggleNsfwFilter(e.target.checked);
     });
 
+    // 归档过滤开关
+    document.getElementById('archiveFilterToggle').addEventListener('change', (e) => {
+      this.toggleArchiveFilter(e.target.checked);
+    });
+
     // 标签列表和分类列表鼠标拖动功能
     this.setupDragScroll(document.getElementById('tagsContainer'));
     this.setupDragScroll(document.getElementById('categoriesContainer'), {
@@ -540,6 +708,11 @@ async loadNotes() {
     this.filteredNotes = this.notes.filter(note => {
       // NSFW过滤：开启时排除带有NSFW标签的笔记
       if (this.nsfwFilterEnabled && note.tags.some(tag => tag.toLowerCase() === 'nsfw')) {
+        return false;
+      }
+
+      // 归档过滤：开启时排除已归档笔记
+      if (this.archiveFilterEnabled && note.archived) {
         return false;
       }
 
@@ -612,6 +785,9 @@ async loadNotes() {
       } else if (note.color && note.color !== 'white') {
         className += ' ' + this.getColorClassName(note.color);
       }
+      if (note.archived) {
+        className += ' archived';
+      }
       div.className = className;
 
       let titleHtml = '';
@@ -636,6 +812,7 @@ async loadNotes() {
           ${note.tags.map(tag => `<span class="note-tag">${tag}</span>`).join('')}
         </div>
         <div class="note-category">${note.category && note.category !== 'default' ? note.category : '默认'}</div>
+        ${note.archived ? '<div class="note-archived-badge">归档</div>' : ''}
         <div class="note-time">${createTime}</div>
         <div class="note-actions">
           <div class="color-picker-container" data-note-id="${note.id}">
@@ -654,6 +831,7 @@ async loadNotes() {
           <button class="note-pin-btn ${note.pinned ? 'pinned' : ''}" data-note-id="${note.id}" title="${note.pinned ? '取消置顶' : '置顶'}"><span class="pin-icon-wrap">${note.pinned ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M15 9.34V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H7.89"/><path class="pin-off-slash" d="m2 2 20 20" stroke-dasharray="29"/><path d="M9 9v1.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h11"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M9 10.8c0 .8-.4 1.5-1.1 1.8l-1.8.9c-.7.3-1.1 1-1.1 1.8v.8c0 .6.4 1 1 1h12c.6 0 1-.4 1-1v-.8c0-.8-.4-1.5-1.1-1.8l-1.8-.9c-.7-.3-1.1-1-1.1-1.8v-3.8c0-.6.4-1 1-1 1.1 0 2-.9 2-2s-.9-2-2-2h-8c-1.1 0-2 .9-2 2s.9 2 2 2 1 .4 1 1v3.8Z"/></svg>'}</span></button>
           <button class="note-edit-btn" data-note-id="${note.id}" title="编辑"><span class="edit-icon-wrap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m11 10 3 3"/><path d="M6.5 21A3.5 3.5 0 1 0 3 17.5a2.62 2.62 0 0 1-.708 1.792A1 1 0 0 0 3 21z"/><path d="M9.969 17.031 21.378 5.624a1 1 0 0 0-3.002-3.002L6.967 14.031"/></svg></span></button>
           ${imageBtnHtml}
+          <button class="note-archive-btn${note.archived ? ' archived' : ''}" data-note-id="${note.id}" title="${note.archived ? '取消归档' : '归档'}"><span class="archive-icon-wrap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/></svg></span></button>
           <button class="note-delete-btn" data-note-id="${note.id}" title="删除"><span class="delete-icon-wrap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><g class="trash-lid"><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M3 6h18"/></g><path class="trash-body" d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><g class="trash-lines"><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></g></svg></span></button>
         </div>
       `;
@@ -692,7 +870,7 @@ async loadNotes() {
       // 单击复制笔记内容
       div.addEventListener('click', (e) => {
         // 如果点击的是编辑、删除、置顶、图片按钮或颜色选择器，不触发复制
-        if (e.target.classList.contains('note-edit-btn') || e.target.classList.contains('note-delete-btn') || e.target.classList.contains('note-pin-btn') || e.target.classList.contains('note-image-btn') || e.target.closest('.color-picker-container')) {
+        if (e.target.classList.contains('note-edit-btn') || e.target.classList.contains('note-delete-btn') || e.target.classList.contains('note-pin-btn') || e.target.classList.contains('note-image-btn') || e.target.closest('.note-archive-btn') || e.target.closest('.color-picker-container')) {
           return;
         }
         // 检查是否有 url 标签（不区分大小写）
@@ -794,6 +972,15 @@ async loadNotes() {
         }
       });
 
+      // 归档按钮点击事件
+      const archiveBtn = div.querySelector('.note-archive-btn');
+      if (archiveBtn) {
+        archiveBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.toggleArchive(note.id, div);
+        });
+      }
+
       container.appendChild(div);
       this.renderedCount = endIndex;
     }
@@ -803,8 +990,10 @@ async loadNotes() {
   }
 
   renderTags() {
-    // 只获取当前分类下的笔记的标签
-    const currentCategoryNotes = this.notes.filter(note => note.category === this.currentCategory);
+    // 只获取当前分类下的笔记的标签（归档开关开启时排除已归档笔记）
+    const currentCategoryNotes = this.notes.filter(note =>
+      note.category === this.currentCategory && !(this.archiveFilterEnabled && note.archived)
+    );
     const allTags = [...new Set(currentCategoryNotes.flatMap(note => note.tags))];
     const container = document.getElementById('tagsContainer');
     container.innerHTML = '';
@@ -1513,6 +1702,7 @@ async loadNotes() {
           tags,
           color: this.currentColor,
           category: category,
+          archived: false,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
@@ -1586,6 +1776,9 @@ async loadNotes() {
                await this.showAlert('导入失败', '无效的文件格式');
                return;
              }
+
+             // 为旧数据补齐归档字段
+             this.normalizeNotesArchived();
              
              this.saveNotes();
              this.filterNotes();
@@ -1709,6 +1902,7 @@ async loadNotes() {
        content: url,
        tags: ['URL'],
        category: this.currentCategory,
+       archived: false,
        createdAt: new Date().toISOString(),
        pinned: false
      };
@@ -1917,6 +2111,8 @@ async loadNotes() {
                  }
                });
              }
+             // 为旧数据补齐归档字段
+             this.normalizeNotesArchived();
              this.saveNotes();
              this.filterNotes();
              this.renderCategories(); // 添加分类刷新

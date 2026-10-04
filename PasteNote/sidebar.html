@@ -148,10 +148,11 @@
       font-size: 8px;
     }
 
-     /* 侧边栏笔记列表自适应高度 */
+     /* 侧边栏笔记列表自适应高度；隐藏横向溢出，避免归档滑出动画触发横向滚动条 */
      .notes-list {
        max-height: none !important;
        overflow-y: auto !important;
+       overflow-x: hidden !important;
      }
 
     /* 标签筛选区域样式 - 添加滑动效果 */
@@ -189,6 +190,18 @@
 
     .notes-section h3 {
       font-size: 13px;
+    }
+
+    /* 笔记区头部：窄侧边栏下允许换行，开关组更紧凑 */
+    .section-header {
+      flex-wrap: wrap;
+      row-gap: 8px;
+    }
+
+    .section-header-left {
+      gap: 6px;
+      flex-wrap: wrap;
+      row-gap: 4px;
     }
 
   </style>
@@ -292,12 +305,17 @@
           <label class="image-toggle" title="切换鼠标悬停显示图片">
             <input type="checkbox" id="imageHoverToggle">
             <span class="toggle-slider"></span>
-            <span class="toggle-label">图片预览</span>
+            <span class="toggle-label">图片</span>
           </label>
           <label class="image-toggle" title="筛选掉NSFW标签笔记">
             <input type="checkbox" id="nsfwFilterToggle">
             <span class="toggle-slider"></span>
-            <span class="toggle-label">隐藏NSFW</span>
+            <span class="toggle-label">NSFW</span>
+          </label>
+          <label class="image-toggle" title="开启后隐藏已归档笔记，关闭可查看归档">
+            <input type="checkbox" id="archiveFilterToggle">
+            <span class="toggle-slider"></span>
+            <span class="toggle-label">归档</span>
           </label>
         </div>
         <div class="section-actions">
